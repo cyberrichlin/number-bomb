@@ -495,8 +495,9 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
       h.winner = { num: num, name: p.name, value: v };
       h.phase = 'over';
     } else {
-      if (v < S.bomb) h.range.min = Math.max(h.range.min, v + 1);
-      else h.range.max = Math.min(h.range.max, v - 1);
+      // 收缩边界时把本次所猜数字包含在内：猜小→下界=所猜数字；猜大→上界=所猜数字
+      if (v < S.bomb) h.range.min = Math.max(h.range.min, v);
+      else h.range.max = Math.min(h.range.max, v);
       h.turn = nextOnlineNum(num);
     }
     hostBroadcast();
@@ -513,13 +514,13 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
       digits = raw.length;
     } else {
       digits = Math.min(6, Math.max(1, parseInt(cfg.digits, 10) || 3));
-      var lo = (digits === 1 ? 1 : pow10(digits - 1));
+      var lo = 1;
       var hi = pow10(digits) - 1;
       value = lo + Math.floor(Math.random() * (hi - lo + 1));
     }
     S.bomb = value;
     h.digits = digits;
-    h.range = { min: (digits === 1 ? 1 : pow10(digits - 1)), max: pow10(digits) - 1 };
+    h.range = { min: 1, max: pow10(digits) - 1 };
     h.players.forEach(function (p) { p.guesses = []; });
     h.history = [];
     h.winner = null;
