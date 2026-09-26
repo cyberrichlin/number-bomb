@@ -1,0 +1,136 @@
+---
+AIGC:
+    Label: "1"
+    ContentProducer: 001191440300708461136T1XGW3
+    ProduceID: 5035900202c792eec3eaa16b083401f8_d19ebfbdb97311f1b172525400248c00
+    ReservedCode1: KuLRYK136RgvVpk7poCluD0YsjcnidHxCkYQZlw8FuTnUORMovywHm3fDzIJeTmYcMK0AjYHvNBUdYcvVMpuYvdQwdcY3sC/DO7Gz21gBoD86LGpm2h/yn0CWqtzWKRUB3zM0uEUjh2Q5x5KoWvf1+5NgzSlbaiegMjz/fkVJI7DInmMgerrb5mqWzE=
+    ContentPropagator: 001191440300708461136T1XGW3
+    PropagateID: 5035900202c792eec3eaa16b083401f8_d19ebfbdb97311f1b172525400248c00
+    ReservedCode2: KuLRYK136RgvVpk7poCluD0YsjcnidHxCkYQZlw8FuTnUORMovywHm3fDzIJeTmYcMK0AjYHvNBUdYcvVMpuYvdQwdcY3sC/DO7Gz21gBoD86LGpm2h/yn0CWqtzWKRUB3zM0uEUjh2Q5x5KoWvf1+5NgzSlbaiegMjz/fkVJI7DInmMgerrb5mqWzE=
+---
+
+# 数字炸弹 · 多人联机网页游戏
+
+一个**纯静态**的多人实时联机小游戏：手机、平板、电脑浏览器都能玩，所有设备之间通过 **WebRTC 数据通道（P2P）直接通信**，没有任何后端服务器存储游戏数据（原理类似微信语音通话——只有建立连接时需要一次信令握手，之后游戏进度只在设备之间点对点传输）。
+
+---
+
+## 一、玩法
+
+1. 第一个人打开网页，填写昵称，点 **「创建房间」**，页面自动生成 **6 位房间号**。
+2. 其他人在**别的设备**打开同一网址，输入这个房间号，点 **「加入」**，浏览器之间自动建立直连。
+   - 人数不限，**游戏中途加入也可以**，会自动同步当前进度（炸弹位数、已猜数字、当前轮到谁）。
+3. 房主在开局前设置炸弹：
+   - **随机位数**：选择 1~6 位（例如 3 位），系统在该位数范围内随机生成炸弹数字，**房主自己也不知道具体数字**；
+   - **指定数字**：房主直接输入一个具体数字（其他玩家看不到）。
+4. 所有玩家按 **#1、#2、#3…** 的顺序轮流猜数字，每次猜完会提示「太大 / 太小」，并不断缩小可用范围。
+5. 只要有人猜中炸弹，**所有设备同时弹出「游戏结束」并显示是哪位玩家猜中**（例如 "#3 小明 猜中了炸弹数字 472"）。
+6. 屏幕上方常驻玩家条：显示每位玩家的编号、昵称、**已猜过的所有数字**，并用高亮边框 + 「猜数中」标记**当前轮到谁**。
+
+---
+
+## 二、文件清单
+
+| 文件 | 说明 |
+| --- | --- |
+| `index.html` | 全部页面结构、样式与游戏逻辑（单文件，含 P2P 网络层、状态同步、UI 渲染） |
+| `vendor/peerjs.min.js` | PeerJS 1.5.4 本地副本（WebRTC 封装库，用于建立设备直连；页面优先加载它，加载失败会自动回退 CDN） |
+| `README.md` | 本说明文档 |
+| `.nojekyll` | 空文件。告诉 GitHub Pages **不要**用 Jekyll 处理站点（防止静态资源被忽略 / 构建异常） |
+
+> 部署时请保持目录结构不变：`index.html` 与 `vendor/` 必须在同一层级。
+
+---
+
+## 三、本地运行
+
+因为浏览器要求安全上下文（HTTPS 或 localhost）才能使用 WebRTC，本地测试请用 HTTP 服务器打开，**不要**直接双击 `index.html`（`file://` 协议下部分浏览器会禁用 WebRTC 或剪贴板）。
+
+```bash
+# 在项目目录下任选一种
+python -m http.server 8080
+
+# 或
+npx serve . -l 8080
+```
+
+然后浏览器访问 `http://localhost:8080`。
+同一局域网的手机可用 `http://<电脑局域网IP>:8080` 访问（注意：Chrome 对非 localhost 的 HTTP 页面可能限制部分能力，跨设备联机建议直接部署到 GitHub Pages 用 HTTPS 测试）。
+
+---
+
+## 四、部署到 GitHub Pages
+
+### 步骤
+
+1. 登录 GitHub，点右上角 **+ → New repository**，新建一个仓库，例如 `number-bomb`。
+   - 可见性可选 Public 或 Private（Private 仓库的 Pages 功能取决于账号套餐，公开仓库最省事）。
+   - **不要**勾选 "Add a README file"（避免和本地文件冲突）。
+2. 上传文件（任选一种方式）：
+   - **网页上传**：进入仓库 → **Add file → Upload files** → 把 `index.html`、`README.md`、`.nojekyll` 以及 `vendor` 文件夹一起拖进去 → Commit changes。
+     - 注意：网页拖拽上传时，`.nojekyll` 这类以点开头的文件在部分系统文件选择器中可能不显示，可先压缩再上传，或用下面的 Git 命令行方式。
+   - **Git 命令行**（推荐，能确保 `.nojekyll` 和 `vendor/` 都被提交）：
+     ```bash
+     cd 数字炸弹
+     git init
+     git add -A
+     git commit -m "数字炸弹：多人联机网页游戏"
+     git branch -M main
+     git remote add origin https://github.com/<你的用户名>/number-bomb.git
+     git push -u origin main
+     ```
+3. 进入仓库 **Settings → Pages**：
+   - **Source** 选择 `Deploy from a branch`；
+   - **Branch** 选择 `main`，目录选择 `/ (root)`，点 **Save**。
+4. 等待 1~2 分钟，页面顶部会出现站点地址：
+   `https://<你的用户名>.github.io/number-bomb/`
+5. 把这个网址发给朋友（手机、电脑都行），一方创建房间、另一方输入 6 位房间号，即可开始。
+
+### `.nojekyll` 的作用与注意事项
+
+- GitHub Pages 默认用 Jekyll 处理站点，会**忽略以下划线开头的文件/目录**；本项目虽无下划线目录，但放一个 `.nojekyll` 可以彻底关闭 Jekyll 处理，避免静态资源被过滤或构建失败。
+- 该文件必须是**空文件**或任意内容皆可，**关键是文件名必须以点开头、且不能有扩展名**（`nojekyll.txt`、`.nojekyll.txt` 都不生效）。
+- 若没有成功创建，可进入仓库 → Add file → Create new file → 文件名填 `.nojekyll` → 内容留空 → Commit。
+- 部署后如遇到 404：依次检查 ① 分支/目录是否选对；② `index.html` 是否在仓库根目录（不是套了一层子文件夹）；③ 是否等待了构建完成（Actions 标签页可看进度）。
+
+---
+
+## 五、技术说明
+
+- **网络模型**：房主（#1）是核心节点，其他玩家的消息都发给房主，再由房主广播最新状态（星型拓扑）。房主权威校验回合与胜负，避免各端状态不一致。
+- **信令**：使用 PeerJS 提供的公共信令服务器（`0.peerjs.com`）完成一次握手；**握手完成后游戏数据不再经过任何服务器**，只在浏览器之间通过 WebRTC DataChannel 直接传输。
+- **房间号**：6 位纯数字，内部映射为 PeerJS 的 `sdb-<6位数字>` 节点 ID。创建时若号码已被占用会自动重新生成。
+- **消息协议**（均为 JSON）：
+
+  | 方向 | 消息 | 说明 |
+  | --- | --- | --- |
+  | 客户端 → 房主 | `{t:'join', name}` | 请求加入房间 |
+  | 客户端 → 房主 | `{t:'guess', value}` | 提交一次猜测 |
+  | 房主 → 客户端 | `{t:'welcome', num, code}` | 分配玩家编号 |
+  | 房主 → 客户端 | `{t:'state', state}` | 全量广播游戏状态（玩家列表、猜测记录、当前回合、范围、胜者等） |
+  | 房主 → 客户端 | `{t:'toast', msg}` | 提示消息（例如"还没轮到你猜"） |
+
+- **公平性**：炸弹真实数值只存在于房主的浏览器里，广播出去的状态只包含「位数」与「范围」，其他玩家的页面看不到答案。（注意：纯前端游戏无法阻止房主自己开控制台查看数值，房主即裁判。）
+
+---
+
+## 六、常见问题
+
+| 问题 | 原因与解决办法 |
+| --- | --- |
+| 提示「房间不存在」 | 房间号输错，或房主已退出 / 刷新了页面。请重新确认 6 位数字。 |
+| 提示「连接超时」 | 双方网络不通（例如公司/校园网屏蔽 UDP、或跨运营商）。可尝试切换网络（如手机热点），或在一方网络条件下重试。 |
+| 某个玩家掉线 | 该玩家会自动标记为离线并跳过其回合；房主侧连接断开则整局结束（房主是核心节点）。 |
+| 页面提示 PeerJS 加载失败 | 检查网络；确认 `vendor/peerjs.min.js` 已上传（若缺失，页面会自动尝试从 CDN 加载）。 |
+| 手机打不开、只有电脑能开 | 确认使用的是 `https://` 地址（GitHub Pages 默认就是 HTTPS）。WebRTC 在非安全上下文下不可用。 |
+| 想用自建信令服务器 | 在 `new Peer(...)` 的第二个参数中传入 `{ host, port, path, secure }` 即可切换为自建 PeerServer，游戏数据依然走 P2P。 |
+
+---
+
+## 七、浏览器兼容性
+
+- 桌面：Chrome / Edge / Firefox / Safari 近两年版本。
+- 移动：iOS Safari 14+、Android Chrome 90+、微信内置浏览器（Android 支持良好；iOS 微信内如受限，可用「在浏览器中打开」）。
+
+祝玩得开心，别被炸弹炸到。
+*（内容由AI生成，仅供参考）*
