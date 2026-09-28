@@ -2,12 +2,14 @@
 AIGC:
     Label: "1"
     ContentProducer: 001191440300708461136T1XGW3
-    ProduceID: 5035900202c792eec3eaa16b083401f8_d19ebfbdb97311f1b172525400248c00
-    ReservedCode1: KuLRYK136RgvVpk7poCluD0YsjcnidHxCkYQZlw8FuTnUORMovywHm3fDzIJeTmYcMK0AjYHvNBUdYcvVMpuYvdQwdcY3sC/DO7Gz21gBoD86LGpm2h/yn0CWqtzWKRUB3zM0uEUjh2Q5x5KoWvf1+5NgzSlbaiegMjz/fkVJI7DInmMgerrb5mqWzE=
+    ProduceID: 5035900202c792eec3eaa16b083401f8_aaeb7555b98e11f1b172525400248c00
+    ReservedCode1: ghGmXc/uz2m8uy7MEsWyDn5iGXncaw8eqy7m813xnCp7r0+sFDTHap9ny7lHN10Kxs8dVEDTVhlk7UjYEQDoRKihJDSkReuzKPAM8OI/DvxHdojQrK1ApEZY2CjtWiPEWxEZdTN3C9h5b4q5fZlXBd4905gmh07XZQG6kpRlVmdHeExMuNgXbtisBrw=
     ContentPropagator: 001191440300708461136T1XGW3
-    PropagateID: 5035900202c792eec3eaa16b083401f8_d19ebfbdb97311f1b172525400248c00
-    ReservedCode2: KuLRYK136RgvVpk7poCluD0YsjcnidHxCkYQZlw8FuTnUORMovywHm3fDzIJeTmYcMK0AjYHvNBUdYcvVMpuYvdQwdcY3sC/DO7Gz21gBoD86LGpm2h/yn0CWqtzWKRUB3zM0uEUjh2Q5x5KoWvf1+5NgzSlbaiegMjz/fkVJI7DInmMgerrb5mqWzE=
+    PropagateID: 5035900202c792eec3eaa16b083401f8_aaeb7555b98e11f1b172525400248c00
+    ReservedCode2: ghGmXc/uz2m8uy7MEsWyDn5iGXncaw8eqy7m813xnCp7r0+sFDTHap9ny7lHN10Kxs8dVEDTVhlk7UjYEQDoRKihJDSkReuzKPAM8OI/DvxHdojQrK1ApEZY2CjtWiPEWxEZdTN3C9h5b4q5fZlXBd4905gmh07XZQG6kpRlVmdHeExMuNgXbtisBrw=
 ---
+
+
 
 # 数字炸弹 · 多人联机网页游戏
 
@@ -143,4 +145,5 @@ npx serve . -l 8080
 - 移动：iOS Safari 14+、Android Chrome 90+、微信内置浏览器（Android 支持良好；iOS 微信内如受限，可用「在浏览器中打开」）。
 
 祝玩得开心，别被炸弹炸到。
+*（内容由AI生成，仅供参考）*
 *（内容由AI生成，仅供参考）*
