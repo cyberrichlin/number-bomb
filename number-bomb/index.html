@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0a0d16">
+<meta name="description" content="数字炸弹 · 多人联机网页游戏，基于 WebRTC 设备直连，无需服务器存游戏数据。">
+<title>数字炸弹 · 多人联机</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='30' cy='38' r='22' fill='%23141a2b'/%3E%3Crect x='26' y='6' width='9' height='11' rx='3' fill='%23838ea1'/%3E%3Cpath d='M35 8q11-6 17 5' stroke='%23ff8a3d' stroke-width='5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{height:100%}
+body{
+  height:100%;margin:0;overflow:hidden;
+  background:#0a0d16;
+  background-image:radial-gradient(900px 480px at 50% -10%,rgba(255,95,60,.20),transparent 62%),radial-gradient(760px 460px at 105% 105%,rgba(95,115,255,.16),transparent 60%);
+  color:#e9edf7;
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+input,button,select{font-family:inherit;font-size:16px}
+.hidden{display:none !important}
+.muted{color:#8b95b2;font-size:14px;margin:6px 0}
+.hint{color:#7b86a5;font-size:12.5px;line-height:1.6;margin:10px 0 0}
+h1,h2,h3{margin:0}
+h2{font-size:16px;margin-bottom:10px}
+
+/* ---------- 通用组件 ---------- */
+.card{
+  background:linear-gradient(180deg,rgba(26,32,54,.95),rgba(20,25,43,.95));
+  border:1px solid #232b47;border-radius:16px;padding:16px;
+  box-shadow:0 8px 24px rgba(0,0,0,.25);
+}
+.btn{
+  border:0;border-radius:12px;height:48px;padding:0 18px;
+  background:#242c49;color:#e9edf7;font-weight:600;cursor:pointer;
+  transition:transform .12s ease,filter .12s ease,opacity .12s ease;
+  display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;
+}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:linear-gradient(135deg,#ff8a3d,#ff3d6e);color:#fff;box-shadow:0 8px 20px rgba(255,80,90,.28)}
+.btn.block{width:100%;margin-top:14px}
+.btn:disabled{opacity:.42;cursor:not-allowed;box-shadow:none}
+.btn-row{display:flex;gap:10px;margin-top:14px}
+.btn-row .btn{flex:1 1 0;padding:0 10px}
+input[type=text],input[type=number],input:not([type]){
+  width:100%;height:48px;border-radius:12px;border:1px solid #28304d;
+  background:#0f1424;color:#e9edf7;padding:0 14px;outline:none;
+  transition:border-color .15s ease;
+}
+input:focus{border-color:#ff6b3d}
+input:disabled{opacity:.5}
+label.field{display:block;margin-bottom:14px}
+label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
+.mini{
+  border:1px solid #2c3556;background:#1b2238;color:#c8d1e6;
+  border-radius:9px;height:30px;padding:0 10px;font-size:12.5px;cursor:pointer;
+}
+.mini.ghost{background:transparent}
+.pill{
+  border:1px solid #2c3556;background:#161c30;color:#c8d1e6;border-radius:999px;
+  height:38px;padding:0 14px;font-size:14px;cursor:pointer;
+}
+.pill.on{background:linear-gradient(135deg,#ff8a3d,#ff3d6e);border-color:transparent;color:#fff;font-weight:600}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 2px}
+.seg{display:flex;background:#0f1424;border:1px solid #28304d;border-radius:12px;padding:4px;margin-bottom:14px}
+.seg-btn{
+  flex:1 1 0;border:0;background:transparent;color:#8b95b2;height:38px;
+  border-radius:9px;cursor:pointer;font-size:14.5px;
+}
+.seg-btn.on{background:#242c49;color:#fff;font-weight:600}
+
+/* ---------- 首页 ---------- */
+.screen{display:none;height:100%}
+.screen.active{display:flex;flex-direction:column}
+#screen-home{overflow-y:auto}
+.home-wrap{margin:auto;width:100%;max-width:440px;padding:28px 18px calc(28px + env(safe-area-inset-bottom))}
+.brand{text-align:center;margin-bottom:22px}
+.logo{font-size:52px;line-height:1;filter:drop-shadow(0 6px 18px rgba(255,90,60,.5))}
+.brand h1{font-size:28px;margin:10px 0 4px;letter-spacing:2px}
+.brand p{color:#8b95b2;font-size:13.5px;margin:0}
+.or{display:flex;align-items:center;gap:10px;color:#6d7796;font-size:12.5px;margin:18px 0 12px}
+.or::before,.or::after{content:"";flex:1 1 auto;height:1px;background:#232b47}
+.join-row{display:flex;gap:10px}
+.join-row input{flex:1 1 auto;letter-spacing:4px;font-size:18px;text-align:center;font-weight:600}
+.join-row .btn{flex:0 0 auto;padding:0 22px}
+.tip{color:#ffb020;font-size:13px;min-height:20px;margin:12px 0 0;text-align:center}
+.foot-note{text-align:center;color:#5f6a88;font-size:12px;margin-top:20px;line-height:1.7}
+
+/* ---------- 房间页 ---------- */
+#screen-room{flex-direction:column;overflow:hidden}
+.topbar{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top));
+  background:rgba(13,17,32,.94);border-bottom:1px solid #1e2540;backdrop-filter:blur(8px);
+}
+.room-code-box{display:flex;align-items:center;gap:8px;min-width:0}
+.room-code-box .lb{font-size:11.5px;color:#7b86a5}
+.room-code-box .code{
+  font-size:20px;font-weight:700;letter-spacing:3px;
+  background:linear-gradient(135deg,#ffb020,#ff5a3d);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.me-box{display:flex;align-items:center;gap:8px;min-width:0}
+.badge{
+  background:#242c49;border-radius:8px;padding:3px 8px;font-size:13px;font-weight:700;color:#ffb020;
+}
+.me-name{font-size:13px;color:#c3cbdd;max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 玩家条 */
+.players{
+  flex:0 0 auto;display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;
+  padding:10px 12px;background:rgba(11,15,28,.85);border-bottom:1px solid #1e2540;
+  -webkit-overflow-scrolling:touch;scrollbar-width:thin;
+}
+.players::-webkit-scrollbar{height:5px}
+.players::-webkit-scrollbar-thumb{background:#2b3453;border-radius:4px}
+.pcard{
+  flex:0 0 auto;min-width:112px;max-width:170px;padding:8px 10px;border-radius:13px;
+  background:#151b2e;border:1px solid #242c47;transition:border-color .18s ease,box-shadow .18s ease;
+}
+.pcard.active{border-color:#ff6b3d;box-shadow:0 0 0 2px rgba(255,107,61,.22);background:#20182a}
+.pcard.offline{opacity:.42}
+.pcard .pname{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:600}
+.pcard .pname b{color:#ffb020;font-size:12.5px}
+.pcard .pname .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:82px}
+.pcard .pname .you{font-style:normal;font-size:10px;background:#2b3453;color:#9fb0d6;border-radius:6px;padding:1px 5px}
+.pcard .turnflag{font-size:10.5px;color:#ff8a3d;margin-left:auto;white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px;max-height:70px;overflow-y:auto}
+.chip{font-size:11px;padding:1.5px 6px;border-radius:7px;background:#242c49;color:#c3cbdd}
+.chip.empty{background:transparent;color:#4e5878;padding-left:0}
+
+/* 主区 */
+.main{
+  flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px 12px calc(16px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch;
+}
+.main>.card{flex:0 0 auto}
+.turn-card{background:linear-gradient(135deg,rgba(255,138,61,.16),rgba(255,61,110,.10)),linear-gradient(180deg,#1a2036,#141a2c)}
+.turn-card.mine{border-color:#ff6b3d;box-shadow:0 0 0 2px rgba(255,107,61,.2)}
+.turn-title{font-size:19px;font-weight:700;letter-spacing:.5px}
+.turn-card.mine .turn-title{color:#ffb020}
+.turn-sub{margin-top:8px;font-size:13.5px;color:#a9b3cc}
+.turn-sub b{color:#ff8a3d}
+.guess-row{display:flex;gap:10px}
+.guess-row input{flex:1 1 auto;text-align:center;font-size:19px;font-weight:600;letter-spacing:2px}
+.guess-row .btn{flex:0 0 auto;padding:0 24px}
+.big{font-size:19px;color:#ffb020}
+.over-card{text-align:center}
+.over-card .boom{font-size:44px;line-height:1;filter:drop-shadow(0 6px 16px rgba(255,90,60,.5))}
+.over-card h2{margin:10px 0 8px;font-size:20px}
+.over-line{font-size:15.5px;margin:0}
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.hist li{display:flex;align-items:center;gap:10px;font-size:14px;padding:7px 10px;background:#141a2c;border-radius:10px}
+.hist .hn{color:#a9b3cc;font-size:13px;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist .hv{color:#fff}
+.tag{font-size:11.5px;border-radius:7px;padding:1.5px 7px;flex:0 0 auto}
+.tag.low{background:rgba(65,140,255,.18);color:#79b0ff}
+.tag.high{background:rgba(255,176,32,.18);color:#ffc65c}
+.tag.boom{background:rgba(255,61,110,.2);color:#ff7a9c}
+
+/* 弹窗 / toast */
+.modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-mask{position:absolute;inset:0;background:rgba(5,8,16,.72);backdrop-filter:blur(3px)}
+.modal-card{
+  position:relative;width:100%;max-width:380px;text-align:center;
+  background:linear-gradient(180deg,#1c2340,#141a2c);border:1px solid #2c3556;
+  border-radius:20px;padding:24px 20px;box-shadow:0 20px 50px rgba(0,0,0,.5);
+  animation:pop .22s ease;
+}
+@keyframes pop{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-card .boom{font-size:48px;line-height:1;filter:drop-shadow(0 6px 16px rgba(255,90,60,.55))}
+.modal-card h2{margin:12px 0 10px;font-size:21px}
+.modal-card .over-line{font-size:15.5px;margin:0 0 6px}
+.modal-card .btn-row{margin-top:18px}
+.toast{
+  position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom));transform:translateX(-50%);
+  z-index:80;max-width:86vw;padding:11px 18px;border-radius:12px;
+  background:rgba(35,44,73,.97);border:1px solid #3a4470;color:#e9edf7;
+  font-size:14px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.4);
+}
+
+/* ---------- 真心话大冒险 ---------- */
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.switch-row .lb{font-size:14.5px;font-weight:600;color:#e9edf7}
+.switch-row .sd{font-size:12.5px;color:#7b86a5;margin-top:4px;line-height:1.5}
+.switch{position:relative;flex:0 0 auto;width:48px;height:28px;border-radius:999px;background:#242c49;
+  border:1px solid #2c3556;cursor:pointer;transition:background .18s ease,border-color .18s ease}
+.switch::after{content:"";position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;
+  background:#8b95b2;transition:transform .18s ease,background .18s ease}
+.switch.on{background:linear-gradient(135deg,#ff8a3d,#ff3d6e);border-color:transparent}
+.switch.on::after{transform:translateX(20px);background:#fff}
+/* 游戏结束惩罚设置：内嵌在「设置炸弹」卡片内、开始游戏按钮上方（开关关闭时模式区不渲染、不占位） */
+.penalty-box{margin-top:16px;padding-top:14px;border-top:1px solid #232b47}
+.penalty-box .pills{margin:12px 0 0}
+.pills-2{display:flex;gap:8px}
+.pills-2 .pill{flex:1 1 0;min-width:0;padding:0 8px;white-space:nowrap;text-align:center}
+.penalty-tip{margin:12px 0 0;font-size:13px;color:#ffb020;letter-spacing:.5px}
+.pick-card{padding:18px 16px}
+.pick-card h2{font-size:16px;text-align:center;color:#c8d1e6;margin-bottom:14px;letter-spacing:.5px}
+.pick-btn{width:100%;height:64px;font-size:20px;font-weight:700;border-radius:14px;letter-spacing:2px}
+.pick-btn + .pick-btn{margin-top:12px}
+.pick-btn.dare{background:linear-gradient(135deg,#ff8a3d,#ff3d6e);color:#fff;box-shadow:0 8px 22px rgba(255,80,90,.3)}
+.pick-btn.truth{background:#242c49;color:#e9edf7}
+.q-card{text-align:center;padding:26px 20px;background:linear-gradient(180deg,#1c2340,#141a2c);
+  border:1px solid #2c3556;border-radius:20px;box-shadow:0 12px 34px rgba(0,0,0,.4);animation:pop .22s ease}
+.q-kicker{display:inline-block;font-size:12.5px;font-weight:700;letter-spacing:2px;border-radius:999px;
+  padding:4px 12px;margin-bottom:18px}
+.q-kicker.truth{background:rgba(255,138,61,.16);color:#ffb020;border:1px solid #45331f}
+.q-kicker.dare{background:rgba(65,140,255,.16);color:#79b0ff;border:1px solid #26375c}
+.q-text{font-size:21px;line-height:1.85;font-weight:600;color:#fff;letter-spacing:.5px;word-break:break-word}
+.q-foot{margin-top:18px;font-size:12px;color:#6d7796}
+.tada-wrap{margin:auto;width:100%;max-width:520px;display:flex;flex-direction:column;gap:12px}
+.tada-layer{position:fixed;inset:0;z-index:70;display:flex;padding:20px;background:rgba(5,8,16,.86);
+  backdrop-filter:blur(4px);overflow-y:auto;animation:pop .2s ease}
+.tada-layer.hidden{display:none}
+.tada-head{text-align:center;font-size:17px;font-weight:700;letter-spacing:.5px;color:#ffb020;line-height:1.6}
+.tada-head b{color:#fff}
+@media (min-width:760px){.q-text{font-size:23px}}
+
+/* 桌面端微调 */
+@media (min-width:760px){
+  .main{max-width:760px;width:100%;margin:0 auto;padding-left:20px;padding-right:20px}
+  .players{padding-left:calc(50% - 360px);padding-right:calc(50% - 360px)}
+  .topbar{padding-left:calc(50% - 368px);padding-right:calc(50% - 368px)}
+  .brand h1{font-size:32px}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ 首页 ============ -->
+  <section id="screen-home" class="screen active">
+    <div class="home-wrap">
+      <div class="brand">
+        <div class="logo">💣</div>
+        <h1>数字炸弹</h1>
+        <p>多人联机 · 设备直连 · 无需服务器</p>
+      </div>
+
+      <div class="card">
+        <label class="field">
+          <span>你的昵称</span>
+          <input id="input-name" type="text" maxlength="10" placeholder="例如：小明" autocomplete="off">
+        </label>
+
+        <button class="btn primary block" data-action="create" style="margin-top:0">创建房间</button>
+
+        <div class="or"><span>或加入已有房间</span></div>
+
+        <div class="join-row">
+          <input id="input-code" type="text" inputmode="numeric" maxlength="6" placeholder="6 位房间号" autocomplete="off">
+          <button class="btn" data-action="join">加入</button>
+        </div>
+
+        <p id="home-tip" class="tip"></p>
+      </div>
+
+      <div class="card">
+        <p class="muted" style="margin:0 0 14px">不用建房、不用联机，直接开抽：真心话 / 大冒险 二选一，抽到就得上。</p>
+        <button class="btn block" data-action="solo-tada" style="margin-top:0">单独玩 · 真心话大冒险</button>
+      </div>
+
+      <p class="foot-note">
+        两台设备打开同一网址：一方点「创建房间」拿到 6 位房间号，<br>
+        另一方输入房间号即可自动建立设备直连（P2P），人数不限。
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 房间 ============ -->
+  <section id="screen-room" class="screen">
+    <header class="topbar">
+      <div class="room-code-box">
+        <span class="lb">房间号</span>
+        <span id="room-code" class="code">------</span>
+        <button class="mini" data-action="copy-code">复制</button>
+      </div>
+      <div class="me-box">
+        <span id="my-badge" class="badge">#-</span>
+        <span id="my-name-view" class="me-name">我</span>
+        <button class="mini ghost" data-action="leave">退出</button>
+      </div>
+    </header>
+
+    <div id="players" class="players"></div>
+    <main id="main" class="main"></main>
+  </section>
+
+  <!-- ============ 单独玩 · 真心话大冒险 ============ -->
+  <section id="screen-tada" class="screen">
+    <header class="topbar">
+      <div class="room-code-box">
+        <span class="lb">玩法</span>
+        <span class="code" style="font-size:17px;letter-spacing:1px">真心话大冒险</span>
+      </div>
+      <div class="me-box">
+        <button class="mini ghost" data-action="solo-exit">退出</button>
+      </div>
+    </header>
+    <main id="tada-main" class="main"></main>
+  </section>
+
+</div>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-mask" data-action="close-modal"></div>
+  <div class="modal-card" id="modal-card"></div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- 页内全屏「真心话大冒险」层（联机惩罚用，不跳转页面） -->
+<div id="tada-layer" class="tada-layer hidden"></div>
+
+<!-- PeerJS：优先使用本地 vendor 文件，失败时自动回退 CDN -->
+<script src="vendor/peerjs.min.js"></script>
+<!-- 真心话大冒险：题库 + 抽题算法（与独立版共用同一份数据源，缺失时不影响数字炸弹本体） -->
+<script src="truth-dare.js"></script>
+<script>
+(function () {
+  if (typeof window.Peer === 'function') { window.__peerReady = true; return; }
+  var urls = [
+    'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
+    'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'
+  ];
+  var i = 0;
+  (function next() {
+    if (i >= urls.length) return;
+    var s = document.createElement('script');
+    s.src = urls[i++];
+    s.onload = function () { window.__peerReady = true; };
+    s.onerror = next;
+    document.head.appendChild(s);
+  })();
+})();
+</script>
+
+<script>
+/* =====================================================================
+   数字炸弹 · 多人联机   (纯前端 / WebRTC P2P / 房主权威节点)
+   消息协议：
+     客户端 -> 房主 : {t:'join', name} | {t:'guess', value}
+     房主 -> 客户端 : {t:'welcome', num, code} | {t:'state', state} | {t:'toast', msg}
+   ===================================================================== */
+(function () {
+  'use strict';
+
+  /* ---------------- 工具 ---------------- */
+  function $(id) { return document.getElementById(id); }
+  function rand6() {
+    var s = '';
+    for (var i = 0; i < 6; i++) s += Math.floor(Math.random() * 10);
+    return s;
+  }
+  function digitsOnly(v) { return String(v == null ? '' : v).replace(/[^0-9]/g, ''); }
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function clampName(v) {
+    return String(v == null ? '' : v).replace(/[\s\u0000-\u001f]+/g, ' ').trim().slice(0, 10);
+  }
+  function pow10(n) { return Math.pow(10, n); }
+
+  /* ---------------- 全局状态 ---------------- */
+  var S = {
+    role: null,        // 'host' | 'client'
+    peer: null,
+    code: '',
+    myNum: 0,
+    myName: '',
+    host: null,        // 房主侧权威状态
+    bomb: null,        // 房主侧：炸弹真实数值（不下发给其他人）
+    pub: null,         // 当前渲染用的公开状态（房主与客户端统一）
+    conns: {},         // 房主：peerId -> {conn, num}
+    hostConn: null,    // 客户端：到房主的连接
+    lastPhase: null,
+    busy: false,
+    tadaDeck: null,    // 房主侧：本轮联机真心话大冒险的抽题器（房主抽题，P2P 同步）
+    // 单独玩 · 真心话大冒险（不建房、不联机）
+    solo: { mode: null, deck: null, kind: null, text: '', cat: '', drawn: 0 },
+    inputCache: { 'input-guess': '', 'input-bomb': '' },
+    toastTimer: null
+  };
+  window.__DBG = S;  // 供自动化测试读取内部状态（房主本身即为权威，无安全影响）
+
+  /* ---------------- 提示 ---------------- */
+  function tip(msg) { var el = $('home-tip'); if (el) el.textContent = msg || ''; }
+  function toast(msg) {
+    var el = $('toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    if (S.toastTimer) clearTimeout(S.toastTimer);
+    S.toastTimer = setTimeout(function () { el.classList.add('hidden'); }, 2400);
+  }
+  function openModal(html) { $('modal-card').innerHTML = html; $('modal').classList.remove('hidden'); }
+  function closeModal() { $('modal').classList.add('hidden'); }
+
+  /* ---------------- 房主状态 ---------------- */
+  function newHostState(code) {
+    return {
+      code: code,
+      phase: 'lobby',            // lobby | playing | over
+      turn: 0,
+      players: [],               // {num, name, online, guesses:[]}
+      history: [],               // {num, name, value, hint}
+      range: { min: 0, max: 0 },
+      digits: 0,
+      winner: null,
+      hostNum: 1,
+      config: { mode: 'digits', digits: 3, value: '' },
+      // 游戏结束惩罚（真心话大冒险）——房主可操作，变更即同步给联机玩家
+      penalty: { enabled: false, mode: 'date' },
+      tada: null          // 联机会话：{open, kind, text, cat, drawn, by}
+    };
+  }
+  function hostPublic() {
+    var h = S.host;
+    return {
+      code: h.code,
+      phase: h.phase,
+      turn: h.turn,
+      players: h.players.map(function (p) {
+        return { num: p.num, name: p.name, online: p.online, guesses: p.guesses.slice() };
+      }),
+      history: h.history.slice(),
+      range: { min: h.range.min, max: h.range.max },
+      digits: h.digits,
+      winner: h.winner ? { num: h.winner.num, name: h.winner.name, value: h.winner.value } : null,
+      hostNum: h.hostNum,
+      penalty: { enabled: !!h.penalty.enabled, mode: h.penalty.mode },
+      tada: h.tada ? {
+        open: !!h.tada.open, kind: h.tada.kind, text: h.tada.text,
+        cat: h.tada.cat, drawn: h.tada.drawn, by: h.tada.by
+      } : null
+    };
+  }
+  function findPlayer(num) {
+    var ps = S.host.players;
+    for (var i = 0; i < ps.length; i++) if (ps[i].num === num) return ps[i];
+    return null;
+  }
+  function allocNum() {
+    var used = {};
+    S.host.players.forEach(function (p) { used[p.num] = 1; });
+    var n = 1;
+    while (used[n]) n++;
+    return n;
+  }
+  function nextOnlineNum(curNum) {
+    var ps = S.host.players;
+    if (!ps.length) return 0;
+    var idx = -1;
+    for (var i = 0; i < ps.length; i++) if (ps[i].num === curNum) { idx = i; break; }
+    for (var k = 1; k <= ps.length; k++) {
+      var p = ps[(idx + k + ps.length) % ps.length];
+      if (p.online) return p.num;
+    }
+    return curNum;
+  }
+  function firstOnlineNum() {
+    var ps = S.host.players;
+    for (var i = 0; i < ps.length; i++) if (ps[i].online) return ps[i].num;
+    return 1;
+  }
+
+  /* ---------------- 房主：网络 ---------------- */
+  function hostSend(conn, obj) {
+    try { if (conn && conn.open) conn.send(obj); } catch (e) { console.warn(e); }
+  }
+  function hostBroadcast() {
+    S.pub = hostPublic();
+    var payload = { t: 'state', state: S.pub };
+    Object.keys(S.conns).forEach(function (pid) {
+      hostSend(S.conns[pid].conn, payload);
+    });
+    render();
+  }
+  function bindHost(p) {
+    p.on('connection', function (conn) {
+      S.conns[conn.peer] = { conn: conn, num: 0 };
+      conn.on('open', function () {
+        if (!S.conns[conn.peer]) S.conns[conn.peer] = { conn: conn, num: 0 };
+      });
+      conn.on('data', function (data) {
+        try { hostOnData(conn, data); } catch (e) { console.error(e); }
+      });
+      conn.on('close', function () { hostOnLeave(conn); });
+      conn.on('error', function () { hostOnLeave(conn); });
+    });
+    p.on('disconnected', function () {
+      try { p.reconnect(); } catch (e) {}
+    });
+  }
+  function hostOnData(conn, data) {
+    if (!data || typeof data !== 'object') return;
+    var h = S.host;
+    if (!h) return;
+    var entry = S.conns[conn.peer];
+    if (!entry) { entry = S.conns[conn.peer] = { conn: conn, num: 0 }; }
+
+    if (data.t === 'join') {
+      if (!entry.num) {
+        entry.num = allocNum();
+        h.players.push({
+          num: entry.num,
+          name: clampName(data.name) || ('玩家' + entry.num),
+          online: true,
+          guesses: []
+        });
+      } else {
+        var again = findPlayer(entry.num);
+        if (again) again.online = true;
+      }
+      hostSend(conn, { t: 'welcome', num: entry.num, code: h.code });
+      hostBroadcast();
+      return;
+    }
+    if (!entry.num) return;
+    if (data.t === 'tada') {
+      // 真心话大冒险：一律由房主抽题后广播，保证所有玩家看到同一道题
+      if (data.act === 'open') hostTadaOpen();
+      else if (data.act === 'pick') hostTadaPick(data.kind);
+      else if (data.act === 'next') hostTadaNext();
+      else if (data.act === 'close') hostTadaClose();
+      return;
+    }
+    if (data.t === 'guess') {
+      hostGuess(entry.num, data.value, conn);
+    }
+  }
+  function hostOnLeave(conn) {
+    var entry = S.conns[conn.peer];
+    if (!entry) return;
+    delete S.conns[conn.peer];
+    var h = S.host;
+    if (!h || !entry.num) { hostBroadcast(); return; }
+    var p = findPlayer(entry.num);
+    if (p) {
+      p.online = false;
+      if (h.phase === 'playing' && h.turn === p.num) h.turn = nextOnlineNum(p.num);
+    }
+    hostBroadcast();
+  }
+
+  /* ---------------- 房主：游戏逻辑 ---------------- */
+  function hostGuess(num, raw, conn) {
+    var h = S.host;
+    if (!h || h.phase !== 'playing') {
+      if (conn) hostSend(conn, { t: 'toast', msg: '游戏尚未开始' });
+      return;
+    }
+    var v = parseInt(digitsOnly(raw), 10);
+    if (!isFinite(v) || v <= 0) {
+      if (conn) hostSend(conn, { t: 'toast', msg: '请输入正整数' });
+      return;
+    }
+    if (h.turn !== num) {
+      if (conn) hostSend(conn, { t: 'toast', msg: '还没轮到你猜' });
+      return;
+    }
+    var p = findPlayer(num);
+    if (!p) return;
+
+    p.guesses.push(v);
+    var hit = (v === S.bomb);
+    var hint = hit ? 'boom' : (v < S.bomb ? 'low' : 'high');
+    h.history.push({ num: num, name: p.name, value: v, hint: hint });
+
+    if (hit) {
+      h.winner = { num: num, name: p.name, value: v };
+      h.phase = 'over';
+    } else {
+      // 收缩边界时把本次所猜数字包含在内：猜小→下界=所猜数字；猜大→上界=所猜数字
+      if (v < S.bomb) h.range.min = Math.max(h.range.min, v);
+      else h.range.max = Math.min(h.range.max, v);
+      h.turn = nextOnlineNum(num);
+    }
+    hostBroadcast();
+  }
+  function hostStart() {
+    var h = S.host;
+    if (!h) return;
+    var cfg = h.config;
+    var digits, value;
+    if (cfg.mode === 'fixed') {
+      var raw = digitsOnly(cfg.value);
+      if (!raw || raw === '0' || raw.length > 6) { toast('请输入 1~6 位正整数作为炸弹'); return; }
+      value = parseInt(raw, 10);
+      digits = raw.length;
+    } else {
+      digits = Math.min(6, Math.max(1, parseInt(cfg.digits, 10) || 3));
+      var lo = 1;
+      var hi = pow10(digits) - 1;
+      value = lo + Math.floor(Math.random() * (hi - lo + 1));
+    }
+    S.bomb = value;
+    h.digits = digits;
+    h.range = { min: 1, max: pow10(digits) - 1 };
+    h.players.forEach(function (p) { p.guesses = []; });
+    h.history = [];
+    h.winner = null;
+    h.tada = null;              // 新一局：清空上一局的惩罚会话（惩罚开关与模式保留）
+    S.tadaDeck = null;
+    h.phase = 'playing';
+    h.turn = firstOnlineNum();
+    S.inputCache['input-guess'] = '';
+    closeModal();
+    hostBroadcast();
+    toast('炸弹已设置：' + digits + ' 位数');
+  }
+  function hostBackLobby() {
+    var h = S.host;
+    if (!h) return;
+    h.phase = 'lobby';
+    h.winner = null;
+    h.tada = null;
+    S.tadaDeck = null;
+    h.history = [];
+    h.players.forEach(function (p) { p.guesses = []; });
+    closeModal();
+    hostBroadcast();
+  }
+
+  /* ---------------- 渲染 ---------------- */
+  function findMe(s) {
+    for (var i = 0; i < s.players.length; i++) if (s.players[i].num === S.myNum) return s.players[i];
+    return null;
+  }
+  function playerByNum(s, num) {
+    for (var i = 0; i < s.players.length; i++) if (s.players[i].num === num) return s.players[i];
+    return null;
+  }
+
+  function render() {
+    var s = S.pub;
+    if (!s) return;
+
+    var focusId = null, selS = null, selE = null;
+    var ae = document.activeElement;
+    if (ae && ae.id) {
+      focusId = ae.id;
+      try { selS = ae.selectionStart; selE = ae.selectionEnd; } catch (e) {}
+    }
+    ['input-guess', 'input-bomb'].forEach(function (id) {
+      var el = $(id);
+      if (el) S.inputCache[id] = el.value;
+    });
+    if (S.lastPhase !== s.phase) S.inputCache['input-guess'] = '';
+
+    $('room-code').textContent = s.code;
+    $('my-badge').textContent = '#' + (S.myNum || '-');
+    var me = findMe(s);
+    $('my-name-view').textContent = me ? me.name : '我';
+
+    renderPlayers(s);
+    $('main').innerHTML = mainHtml(s);
+
+    if (focusId) {
+      var el2 = $(focusId);
+      if (el2 && !el2.disabled) {
+        el2.focus();
+        try { if (selS != null) el2.setSelectionRange(selS, selE); } catch (e) {}
+      }
+    }
+
+    if (s.phase === 'over' && S.lastPhase !== 'over') openModal(overModalHtml(s));
+    if (s.phase !== 'over' && !$('modal').classList.contains('hidden')) closeModal();
+
+    renderTada(s);
+
+    S.lastPhase = s.phase;
+  }
+
+  function renderPlayers(s) {
+    var html = s.players.map(function (p) {
+      var active = (s.phase === 'playing' && s.turn === p.num);
+      var cls = 'pcard' + (p.online ? '' : ' offline') + (active ? ' active' : '');
+      var chips = p.guesses.length
+        ? p.guesses.map(function (g) { return '<span class="chip">' + g + '</span>'; }).join('')
+        : '<span class="chip empty">暂无</span>';
+      var you = (p.num === S.myNum) ? '<i class="you">我</i>' : '';
+      var flag = active ? '<span class="turnflag">猜数中</span>' : '';
+      return '<div class="' + cls + '">' +
+        '<div class="pname"><b>#' + p.num + '</b><span class="nm">' + esc(p.name) + '</span>' + you + flag + '</div>' +
+        '<div class="chips">' + chips + '</div>' +
+        '</div>';
+    }).join('');
+    $('players').innerHTML = html || '<div class="pcard"><div class="pname">等待玩家…</div></div>';
+  }
+
+  function mainHtml(s) {
+    var h = '';
+    if (s.phase === 'lobby') h += lobbyHtml(s);
+    else if (s.phase === 'playing') h += playingHtml(s);
+    else h += overHtml(s);
+    h += historyHtml(s);
+    return h;
+  }
+
+  function lobbyHtml(s) {
+    var h = '';
+    h += '<div class="card">';
+    h += '<h2>邀请好友加入</h2>';
+    h += '<p class="muted">把房间号告诉对方，或发送邀请链接：</p>';
+    h += '<p class="muted" style="font-size:22px;letter-spacing:4px;color:#ffb020;font-weight:700;text-align:center;margin:10px 0">' + esc(s.code) + '</p>';
+    h += '<div class="btn-row"><button class="btn" data-action="copy-code">复制房间号</button><button class="btn" data-action="copy-link">复制邀请链接</button></div>';
+    h += '<p class="hint">对方打开同一网址输入房间号即可入局；游戏开始后也能加入，会自动同步进度。</p>';
+    h += '</div>';
+
+    if (S.role === 'host') {
+      h += hostSetupHtml(s);
+    } else {
+      var pen = s.penalty || { enabled: false, mode: 'date' };
+      h += '<div class="card"><h2>等待房主设置炸弹</h2><p class="muted">房主设置炸弹后会立即开始，请稍候…</p>' +
+           '<p class="hint">当前房间人数：' + s.players.length + ' 人<br>游戏结束惩罚（真心话大冒险）：' +
+           (pen.enabled ? ('已开启 · ' + TADA_MODE_LABEL[pen.mode]) : '未开启') + '</p></div>';
+    }
+    return h;
+  }
+
+  function hostSetupHtml(s) {
+    var cfg = S.host.config;
+    var pills = [1, 2, 3, 4, 5, 6].map(function (d) {
+      var on = (cfg.mode === 'digits' && parseInt(cfg.digits, 10) === d) ? ' on' : '';
+      return '<button class="pill' + on + '" data-action="digit" data-v="' + d + '">' + d + ' 位</button>';
+    }).join('');
+    var bombVal = S.inputCache['input-bomb'] || '';
+
+    var h = '<div class="card">';
+    h += '<h2>设置炸弹（仅房主可操作）</h2>';
+    h += '<div class="seg">';
+    h += '<button class="seg-btn' + (cfg.mode === 'digits' ? ' on' : '') + '" data-action="mode" data-v="digits">随机位数</button>';
+    h += '<button class="seg-btn' + (cfg.mode === 'fixed' ? ' on' : '') + '" data-action="mode" data-v="fixed">指定数字</button>';
+    h += '</div>';
+
+    if (cfg.mode === 'digits') {
+      h += '<p class="muted">炸弹是几位数？</p>';
+      h += '<div class="pills">' + pills + '</div>';
+      h += '<p class="hint">系统会在该位数范围内随机生成炸弹，房主自己也不知道具体数字。</p>';
+    } else {
+      h += '<p class="muted">指定炸弹数字（其他玩家看不到）</p>';
+      h += '<input id="input-bomb" inputmode="numeric" maxlength="6" placeholder="例如 472" value="' + esc(bombVal) + '">';
+      h += '<p class="hint">1~6 位正整数；发牌后玩家轮流猜，猜中即结束。</p>';
+    }
+    /* 游戏结束惩罚（真心话大冒险）：内嵌在本卡片内、开始游戏按钮正上方 */
+    h += penaltyBoxHtml(s);
+    h += '<button class="btn primary block" data-action="start">开始游戏</button>';
+    h += '</div>';
+    return h;
+  }
+
+  /* 游戏结束惩罚（真心话大冒险）设置 —— 不是独立卡片，嵌在「设置炸弹」卡片内部：
+     · 开关为小巧 toggle（左右滑动）
+     · 模式选项用与「1 位 / 2 位 / 3 位」一致的胶囊按钮左右并排（选中橙红渐变、未选深蓝灰）
+     · 开关关闭时模式区整块不渲染，不占位
+     · 宽度与卡片内容对齐，不产生横向溢出 */
+  function penaltyBoxHtml(s) {
+    var p = (S.host && S.host.penalty) || s.penalty || { enabled: false, mode: 'date' };
+    var h = '<div class="penalty-box">';
+    h += '<div class="switch-row">' +
+           '<div><div class="lb">猜中炸弹后玩真心话大冒险</div>' +
+           '<div class="sd">开启后，游戏结束时猜中炸弹的人接受真心话 / 大冒险惩罚</div></div>' +
+           '<div class="switch' + (p.enabled ? ' on' : '') + '" data-action="penalty-toggle" role="switch" aria-checked="' +
+           (p.enabled ? 'true' : 'false') + '"></div>' +
+         '</div>';
+    if (p.enabled) {
+      h += '<div class="pills pills-2">' +
+             '<button class="pill' + (p.mode === 'date' ? ' on' : '') + '" data-action="penalty-mode" data-v="date">男女朋友版</button>' +
+             '<button class="pill' + (p.mode === 'couple' ? ' on' : '') + '" data-action="penalty-mode" data-v="couple">情侣升级版</button>' +
+           '</div>';
+      h += '<p class="hint">男女朋友版：大冒险池子温和，适合刚接触 / 暧昧期；情侣升级版：更亲密刺激，适合稳定情侣。两版真心话共用同一题库。设置会同步给所有联机玩家。</p>';
+    } else {
+      h += '<p class="hint">默认关闭。打开后设置会同步给所有联机玩家，游戏结束时出现「接受惩罚」入口。</p>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function playingHtml(s) {
+    var myTurn = (s.turn === S.myNum);
+    var turnP = playerByNum(s, s.turn);
+    var turnName = turnP ? ('#' + turnP.num + ' ' + turnP.name) : '—';
+    var h = '';
+
+    h += '<div class="card turn-card' + (myTurn ? ' mine' : '') + '">';
+    h += '<div class="turn-title">' + (myTurn ? '轮到你猜了！' : '正在猜：' + esc(turnName)) + '</div>';
+    h += '<div class="turn-sub">炸弹是 <b>' + s.digits + '</b> 位数';
+    if (s.range && s.range.min && s.range.max && s.range.min <= s.range.max) {
+      h += ' · 当前范围 <b>' + s.range.min + ' ~ ' + s.range.max + '</b>';
+    }
+    h += '</div></div>';
+
+    h += '<div class="card">';
+    h += '<div class="guess-row">';
+    h += '<input id="input-guess" inputmode="numeric" maxlength="6" placeholder="' +
+         (myTurn ? '输入你猜的数字' : '还没轮到你') + '" value="' + esc(S.inputCache['input-guess'] || '') + '"' +
+         (myTurn ? '' : ' disabled') + '>';
+    h += '<button class="btn primary" data-action="guess"' + (myTurn ? '' : ' disabled') + '>猜</button>';
+    h += '</div>';
+    h += '<p class="hint">' + (myTurn ? '输入数字后点击「猜」或按回车。' : '按顺序轮流猜，猜中炸弹立即结束。') + '</p>';
+    h += '</div>';
+    return h;
+  }
+
+  function overHtml(s) {
+    var w = s.winner;
+    var h = '<div class="card over-card">';
+    h += '<div class="boom">💣</div>';
+    h += '<h2>游戏结束</h2>';
+    if (w) h += '<p class="over-line"><b>#' + w.num + ' ' + esc(w.name) + '</b> 猜中了炸弹数字 <b class="big">' + w.value + '</b>！</p>';
+    h += '<p class="muted">本局共 ' + s.history.length + ' 次猜测</p>';
+    if (S.role === 'host') {
+      h += '<div class="btn-row"><button class="btn primary" data-action="again">同设置再来一局</button>' +
+           '<button class="btn" data-action="lobby">返回大厅</button></div>';
+    } else {
+      h += '<p class="hint">等待房主开始新一局…</p>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function historyHtml(s) {
+    var h = '<div class="card"><h2>猜测记录</h2>';
+    if (!s.history.length) {
+      h += '<p class="muted">还没有人猜过。</p>';
+    } else {
+      h += '<ul class="hist">';
+      for (var i = s.history.length - 1; i >= 0; i--) {
+        var it = s.history[i];
+        var tag = it.hint === 'boom' ? '<span class="tag boom">命中</span>'
+                : it.hint === 'low' ? '<span class="tag low">太小</span>'
+                : '<span class="tag high">太大</span>';
+        h += '<li><span class="hn">#' + it.num + ' ' + esc(it.name) + '</span>' +
+             '<b class="hv">' + it.value + '</b>' + tag + '</li>';
+      }
+      h += '</ul>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function overModalHtml(s) {
+    var w = s.winner;
+    var pen = s.penalty && s.penalty.enabled;
+    var h = '<div class="boom">💣</div><h2>游戏结束</h2>';
+    if (w) h += '<p class="over-line"><b>#' + w.num + ' ' + esc(w.name) + '</b> 猜中了炸弹数字 <b class="big">' + w.value + '</b>！</p>';
+    h += '<p class="muted">本局共 ' + s.history.length + ' 次猜测</p>';
+
+    if (pen) {
+      // 惩罚开启：猜中信息下方加一行小字 + 三个按钮（接受惩罚 / 跳过惩罚 / 返回大厅）
+      h += '<p class="penalty-tip">本轮惩罚：真心话大冒险</p>';
+      h += '<div class="btn-row" style="margin-top:16px">' +
+           '<button class="btn primary" data-action="accept-penalty" style="flex:1 1 100%">接受惩罚</button>' +
+           '</div>';
+      h += '<div class="btn-row">' +
+           '<button class="btn" data-action="skip-penalty">跳过惩罚</button>' +
+           '<button class="btn" data-action="lobby">返回大厅</button>' +
+           '</div>';
+    } else {
+      h += '<div class="btn-row">';
+      if (S.role === 'host') {
+        h += '<button class="btn primary" data-action="again">再来一局</button>' +
+             '<button class="btn" data-action="lobby">返回大厅</button>';
+      } else {
+        h += '<button class="btn" data-action="close-modal">知道了</button>';
+      }
+      h += '</div>';
+    }
+    return h;
+  }
+
+  /* =================================================================
+     真心话大冒险（页内层，不跳转页面）
+     · 联机惩罚：房主抽题 → 广播给所有玩家，所有人看到同一道题
+     · 题库与算法来自 truth-dare.js（与独立版共用），此处只做渲染
+     ================================================================= */
+  var TADA_MODE_LABEL = { date: '男女朋友版', couple: '情侣升级版' };
+  var TADA_CAT_LABEL = {
+    hand: '手部互动', shoulder: '肩颈与依偎', waist: '腰部与拥抱', face: '近距离对视',
+    drink: '饮品与喂食', carry: '公主抱与进阶', warm: '气氛升温',
+    kiss: '亲吻', sit: '坐姿', upper: '上半身', vibe: '氛围'
+  };
+  var TADA_EMPTY = '真心话大冒险题库未加载：请确认 truth-dare.js 与 index.html 在同一目录。';
+
+  function tadaReady() { return !!(window.TruthDare && window.TruthDare.Deck); }
+  function tadaNewDeck(mode) { return new window.TruthDare.Deck(mode); }
+
+  /* 题目卡片（联机层与独立版共用渲染） */
+  function qCardHtml(kind, text, cat, drawn, foot) {
+    var isTruth = (kind === 'truth');
+    var h = '<div class="q-card">';
+    h += '<span class="q-kicker ' + (isTruth ? 'truth' : 'dare') + '">' +
+         (isTruth ? '真心话' : '大冒险') +
+         (!isTruth && cat && TADA_CAT_LABEL[cat] ? ' · ' + TADA_CAT_LABEL[cat] : '') + '</span>';
+    h += '<div class="q-text">' + esc(text) + '</div>';
+    h += '<div class="q-foot">' + foot + '</div>';
+    h += '</div>';
+    return h;
+  }
+
+  /* ---------- 联机层渲染 ---------- */
+  function renderTada(s) {
+    var layer = $('tada-layer');
+    if (!layer) return;
+    var t = s && s.tada;
+    if (!t || !t.open) {
+      if (!layer.classList.contains('hidden')) { layer.classList.add('hidden'); layer.innerHTML = ''; }
+      return;
+    }
+    var w = s.winner;
+    var head = '<div class="tada-head"><b>#' + ((w && w.num) || '-') + ' ' + esc((w && w.name) || '玩家') +
+               '</b> 猜中了炸弹，接受惩罚！</div>';
+    var body;
+    if (!t.kind) {
+      body = '<div class="card pick-card">' +
+               '<h2>选一个，开始抽题</h2>' +
+               '<button class="btn pick-btn dare" data-action="tada-pick" data-v="dare">大冒险</button>' +
+               '<button class="btn pick-btn truth" data-action="tada-pick" data-v="truth">真心话</button>' +
+               '<p class="hint" style="text-align:center;margin-top:14px">真心话与大冒险各自独立抽题，「下一题」会在同类型题库里继续抽。</p>' +
+             '</div>';
+    } else {
+      body = qCardHtml(t.kind, t.text, t.cat, t.drawn, '已抽 ' + (t.drawn || 1) + ' 题 · 同类型继续抽不重复') +
+             '<div class="btn-row">' +
+               '<button class="btn primary" data-action="tada-next">下一题</button>' +
+               '<button class="btn" data-action="tada-done">完成惩罚</button>' +
+             '</div>';
+    }
+    layer.innerHTML = '<div class="tada-wrap">' + head + body + '</div>';
+    layer.classList.remove('hidden');
+  }
+
+  /* ---------- 独立版 · 真心话大冒险 ---------- */
+  function resetSolo() {
+    S.solo = { mode: null, deck: null, kind: null, text: '', cat: '', drawn: 0 };
+  }
+  function soloEnter() {
+    $('screen-home').classList.remove('active');
+    $('screen-room').classList.remove('active');
+    $('screen-tada').classList.add('active');
+    resetSolo();
+    renderSolo();
+  }
+  function soloExit() {
+    resetSolo();
+    $('screen-tada').classList.remove('active');
+    $('screen-home').classList.add('active');
+    tip('');
+  }
+  function soloChooseMode(mode) {
+    if (!tadaReady()) { toast(TADA_EMPTY); return; }
+    S.solo.mode = (mode === 'couple') ? 'couple' : 'date';
+    S.solo.deck = tadaNewDeck(S.solo.mode);
+    S.solo.kind = null; S.solo.text = ''; S.solo.cat = ''; S.solo.drawn = 0;
+    renderSolo();
+  }
+  function soloPick(kind) {
+    var so = S.solo;
+    if (!so.deck) return;
+    so.kind = (kind === 'dare') ? 'dare' : 'truth';
+    var q = so.deck.draw(so.kind);
+    so.text = q.text; so.cat = q.cat || ''; so.drawn = 1;
+    renderSolo();
+  }
+  function soloNext() {
+    var so = S.solo;
+    if (!so.deck || !so.kind) return;
+    var q = so.deck.draw(so.kind);
+    so.text = q.text; so.cat = q.cat || ''; so.drawn++;
+    renderSolo();
+  }
+  function renderSolo() {
+    var box = $('tada-main');
+    if (!box) return;
+    var so = S.solo;
+
+    if (!tadaReady()) {
+      box.innerHTML = '<div class="card"><h2>题库未加载</h2><p class="muted">' + TADA_EMPTY + '</p></div>';
+      return;
+    }
+    if (!so.mode) {
+      box.innerHTML = '<div class="tada-wrap">' +
+        '<div class="card">' +
+          '<h2>选择模式</h2>' +
+          '<div class="pills pills-2">' +
+            '<button class="pill" data-action="solo-mode" data-v="date">男女朋友版</button>' +
+            '<button class="pill" data-action="solo-mode" data-v="couple">情侣升级版</button>' +
+          '</div>' +
+          '<p class="hint">男女朋友版：大冒险池子温和，适合刚接触 / 暧昧期；情侣升级版：更亲密刺激，适合稳定情侣。两版真心话共用同一题库。点一下模式，直接开始抽题。</p>' +
+        '</div>' +
+        '<p class="hint" style="text-align:center">流程：选模式 → 真心话 / 大冒险 二选一 → 抽题 → 下一题 / 退出。<br>同一局内抽过的题目不会重复，放心连抽。</p>' +
+        '</div>';
+      return;
+    }
+    if (!so.kind) {
+      box.innerHTML = '<div class="tada-wrap">' +
+        '<div class="card pick-card">' +
+          '<h2>选一个，开始抽题</h2>' +
+          '<button class="btn pick-btn dare" data-action="solo-pick" data-v="dare">大冒险</button>' +
+          '<button class="btn pick-btn truth" data-action="solo-pick" data-v="truth">真心话</button>' +
+          '<p class="hint" style="text-align:center;margin-top:14px">真心话与大冒险各自独立抽题，「下一题」会在同类型题库里继续抽。</p>' +
+        '</div>' +
+        '</div>';
+      return;
+    }
+    box.innerHTML = '<div class="tada-wrap">' +
+      qCardHtml(so.kind, so.text, so.cat, so.drawn, '已抽 ' + so.drawn + ' 题 · 同类型继续抽不重复') +
+      '<div class="btn-row">' +
+        '<button class="btn primary" data-action="solo-next">下一题</button>' +
+        '<button class="btn" data-action="solo-exit">退出</button>' +
+      '</div>' +
+      '</div>';
+  }
+
+  /* ---------- 房主：联机真心话大冒险（权威抽题 + P2P 同步） ---------- */
+  function hostPenaltySet(patch) {
+    var h = S.host;
+    if (!h) return;
+    if (typeof patch.enabled === 'boolean') h.penalty.enabled = patch.enabled;
+    if (patch.mode === 'date' || patch.mode === 'couple') h.penalty.mode = patch.mode;
+    if (!h.penalty.enabled) h.tada = null;   // 关闭开关时收起惩罚层
+    hostBroadcast();
+  }
+  function hostTadaOpen() {
+    var h = S.host;
+    if (!h) return;
+    if (!tadaReady()) { toast(TADA_EMPTY); return; }
+    S.tadaDeck = tadaNewDeck(h.penalty.mode);
+    h.tada = { open: true, kind: null, text: '', cat: '', drawn: 0, by: (h.winner ? h.winner.num : 0) };
+    hostBroadcast();
+  }
+  function hostTadaPick(kind) {
+    var h = S.host;
+    if (!h || !h.tada || !h.tada.open) return;
+    if (!tadaReady()) { toast(TADA_EMPTY); return; }
+    if (!S.tadaDeck) S.tadaDeck = tadaNewDeck(h.penalty.mode);
+    var k = (kind === 'dare') ? 'dare' : 'truth';
+    var q = S.tadaDeck.draw(k);
+    h.tada.kind = k;
+    h.tada.text = q.text;
+    h.tada.cat = q.cat || '';
+    h.tada.drawn = (h.tada.drawn || 0) + 1;
+    hostBroadcast();
+  }
+  function hostTadaNext() {
+    var h = S.host;
+    if (!h || !h.tada || !h.tada.open || !h.tada.kind) return;
+    hostTadaPick(h.tada.kind);
+  }
+  function hostTadaClose() {
+    var h = S.host;
+    if (!h) return;
+    h.tada = null;
+    hostBroadcast();
+  }
+  function clientTada(act, kind) {
+    if (S.hostConn && S.hostConn.open) S.hostConn.send({ t: 'tada', act: act, kind: kind || null });
+    else toast('连接已断开');
+  }
+
+  /* ---------------- 页面切换 ---------------- */
+  function enterRoom() {
+    $('screen-home').classList.remove('active');
+    $('screen-room').classList.add('active');
+    S.lastPhase = null;
+  }
+  function goHome() {
+    closeModal();
+    cleanup();
+    $('screen-room').classList.remove('active');
+    $('screen-tada').classList.remove('active');
+    $('screen-home').classList.add('active');
+    resetSolo();
+    var layer = $('tada-layer');
+    if (layer) { layer.classList.add('hidden'); layer.innerHTML = ''; }
+    tip('');
+  }
+  function cleanup() {
+    try { if (S.hostConn) S.hostConn.close(); } catch (e) {}
+    try { if (S.peer) S.peer.destroy(); } catch (e) {}
+    S.peer = null; S.hostConn = null; S.conns = {};
+    S.role = null; S.host = null; S.pub = null; S.bomb = null;
+    S.tadaDeck = null;
+    S.myNum = 0; S.code = ''; S.lastPhase = null; S.busy = false;
+    S.inputCache = { 'input-guess': '', 'input-bomb': '' };
+  }
+
+  /* ---------------- 房主：创建房间 ---------------- */
+  function doCreate() {
+    if (S.busy) return;
+    if (typeof window.Peer !== 'function') { tip('PeerJS 尚未加载完成，请稍候或检查网络'); return; }
+    S.myName = clampName($('input-name').value) || '房主';
+    S.busy = true;
+    tip('正在创建房间…');
+    var attempt = 0;
+    (function tryOnce() {
+      attempt++;
+      var code = rand6();
+      var p;
+      try { p = new Peer('sdb-' + code, { debug: 1 }); }
+      catch (err) { S.busy = false; tip('初始化失败：' + err.message); return; }
+      var opened = false;
+      p.on('open', function () {
+        opened = true;
+        S.busy = false;
+        S.role = 'host';
+        S.peer = p;
+        S.code = code;
+        S.myNum = 1;
+        S.host = newHostState(code);
+        S.host.players.push({ num: 1, name: S.myName, online: true, guesses: [] });
+        bindHost(p);
+        enterRoom();
+        hostBroadcast();
+        tip('');
+        toast('房间已创建：' + code);
+      });
+      p.on('error', function (err) {
+        if (opened) { console.warn('[host peer error]', err); return; }
+        try { p.destroy(); } catch (e) {}
+        var t = err && err.type;
+        if (t === 'unavailable-id' && attempt < 8) { setTimeout(tryOnce, 80); return; }
+        S.busy = false;
+        tip('创建房间失败（' + (t || '未知错误') + '），请重试');
+      });
+    })();
+  }
+
+  /* ---------------- 客户端：加入房间 ---------------- */
+  function doJoin() {
+    if (S.busy) return;
+    if (typeof window.Peer !== 'function') { tip('PeerJS 尚未加载完成，请稍候或检查网络'); return; }
+    var code = digitsOnly($('input-code').value);
+    if (code.length !== 6) { tip('请输入 6 位房间号'); return; }
+    S.myName = clampName($('input-name').value) || '玩家';
+    S.busy = true;
+    tip('正在连接房主…');
+
+    var p;
+    try { p = new Peer(null, { debug: 1 }); }
+    catch (err) { S.busy = false; tip('初始化失败：' + err.message); return; }
+    S.peer = p;
+
+    var settled = false;
+    var timer = setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      S.busy = false;
+      try { p.destroy(); } catch (e) {}
+      tip('连接超时：房间不存在或网络不通');
+    }, 20000);
+
+    function finish() { settled = true; clearTimeout(timer); S.busy = false; }
+
+    p.on('open', function () {
+      var conn;
+      try { conn = p.connect('sdb-' + code, { reliable: true, serialization: 'json' }); }
+      catch (e) { finish(); tip('连接失败：' + e.message); return; }
+      S.hostConn = conn;
+
+      conn.on('open', function () {
+        conn.send({ t: 'join', name: S.myName });
+      });
+      conn.on('data', function (data) {
+        if (!data || typeof data !== 'object') return;
+        if (data.t === 'welcome') {
+          finish();
+          S.role = 'client';
+          S.code = data.code || code;
+          S.myNum = data.num;
+          enterRoom();
+          tip('');
+          toast('已加入房间，你是 #' + data.num + ' 号');
+        } else if (data.t === 'state') {
+          S.pub = data.state;
+          render();
+        } else if (data.t === 'toast') {
+          toast(data.msg);
+        }
+      });
+      conn.on('close', function () {
+        if (!settled) { finish(); try { p.destroy(); } catch (e) {} tip('加入失败：房间不存在或房主已离开'); }
+        else {
+          openModal('<div class="boom">⚡</div><h2>连接已断开</h2>' +
+            '<p class="muted">与房主的连接已中断，房间可能已关闭。</p>' +
+            '<div class="btn-row"><button class="btn primary" data-action="home">返回首页</button></div>');
+        }
+      });
+      conn.on('error', function (e) { console.warn('[conn error]', e); });
+    });
+
+    p.on('error', function (err) {
+      var t = err && err.type;
+      if (t === 'peer-unavailable') {
+        if (!settled) { finish(); try { p.destroy(); } catch (e) {} tip('房间不存在，请检查 6 位房间号'); }
+        return;
+      }
+      console.warn('[client peer error]', err);
+    });
+  }
+
+  /* ---------------- 操作 ---------------- */
+  function doGuess() {
+    var s = S.pub;
+    if (!s || s.phase !== 'playing') return;
+    var el = $('input-guess');
+    if (!el) return;
+    var raw = digitsOnly(el.value);
+    if (!raw) { toast('请输入要猜的数字'); return; }
+    if (s.turn !== S.myNum) { toast('还没轮到你猜'); return; }
+    var val = parseInt(raw, 10);
+    S.inputCache['input-guess'] = '';
+    el.value = '';
+    if (S.role === 'host') hostGuess(1, val, null);
+    else if (S.hostConn && S.hostConn.open) S.hostConn.send({ t: 'guess', value: val });
+    else toast('连接已断开');
+  }
+
+  function copyText(text, okMsg) {
+    var done = function () { toast(okMsg + '：' + text); };
+    var bad = function () { toast('复制失败，请手动记录：' + text); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done)['catch'](function () { legacyCopy(text, done, bad); });
+    } else {
+      legacyCopy(text, done, bad);
+    }
+  }
+  function legacyCopy(text, ok, bad) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      var r = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (r) ok(); else bad();
+    } catch (e) { bad(); }
+  }
+  function shareLink() {
+    var base = location.href.split('#')[0].split('?')[0];
+    return base + '?room=' + S.code;
+  }
+
+  function doLeave() {
+    if (S.role === 'host') {
+      if (!window.confirm('你是房主，退出后房间将关闭，其他玩家会被断开。确定退出吗？')) return;
+    }
+    goHome();
+  }
+
+  /* ---------------- 事件 ---------------- */
+  document.addEventListener('click', function (e) {
+    var el = e.target && e.target.closest ? e.target.closest('[data-action]') : null;
+    if (!el) return;
+    var act = el.getAttribute('data-action');
+    if (act === 'create') doCreate();
+    else if (act === 'join') doJoin();
+    else if (act === 'copy-code') copyText(S.code, '房间号已复制');
+    else if (act === 'copy-link') copyText(shareLink(), '邀请链接已复制');
+    else if (act === 'leave') doLeave();
+    else if (act === 'home') goHome();
+    else if (act === 'mode') { if (S.host) { S.host.config.mode = (el.getAttribute('data-v') === 'fixed' ? 'fixed' : 'digits'); render(); } }
+    else if (act === 'digit') { if (S.host) { S.host.config.digits = parseInt(el.getAttribute('data-v'), 10) || 3; render(); } }
+    else if (act === 'start' || act === 'again') hostStart();
+    else if (act === 'lobby') hostBackLobby();
+    else if (act === 'guess') doGuess();
+    else if (act === 'close-modal') { if (S.role !== 'host') closeModal(); }
+    /* --- 单独玩 · 真心话大冒险 --- */
+    else if (act === 'solo-tada') soloEnter();
+    else if (act === 'solo-exit') soloExit();
+    else if (act === 'solo-mode') soloChooseMode(el.getAttribute('data-v'));
+    else if (act === 'solo-pick') soloPick(el.getAttribute('data-v'));
+    else if (act === 'solo-next') soloNext();
+    /* --- 游戏结束惩罚（房主可操作） --- */
+    else if (act === 'penalty-toggle') { if (S.host) hostPenaltySet({ enabled: !S.host.penalty.enabled }); }
+    else if (act === 'penalty-mode') { if (S.host) hostPenaltySet({ mode: el.getAttribute('data-v') }); }
+    /* --- 页内真心话大冒险层（联机） --- */
+    else if (act === 'accept-penalty') { if (S.role === 'host') hostTadaOpen(); else clientTada('open'); }
+    else if (act === 'skip-penalty') { if (S.role === 'host') hostStart(); else closeModal(); }
+    else if (act === 'tada-pick') {
+      if (S.role === 'host') hostTadaPick(el.getAttribute('data-v'));
+      else clientTada('pick', el.getAttribute('data-v'));
+    }
+    else if (act === 'tada-next') { if (S.role === 'host') hostTadaNext(); else clientTada('next'); }
+    else if (act === 'tada-done') { if (S.role === 'host') hostTadaClose(); else clientTada('close'); }
+  });
+
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (!t || !t.id) return;
+    if (t.id === 'input-guess') S.inputCache['input-guess'] = digitsOnly(t.value);
+    if (t.id === 'input-bomb') {
+      S.inputCache['input-bomb'] = digitsOnly(t.value);
+      if (S.host) S.host.config.value = S.inputCache['input-bomb'];
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    var t = e.target;
+    if (!t || !t.id) return;
+    if (t.id === 'input-code') { e.preventDefault(); doJoin(); }
+    else if (t.id === 'input-guess') { e.preventDefault(); doGuess(); }
+  });
+
+  window.addEventListener('beforeunload', function () {
+    try { if (S.hostConn) S.hostConn.close(); } catch (e) {}
+    try { if (S.peer) S.peer.destroy(); } catch (e) {}
+  });
+
+  /* ---------------- 启动 ---------------- */
+  function initApp() {
+    var m = location.search.match(/[?&]room=(\d{6})/);
+    if (m) {
+      var el = $('input-code');
+      if (el) el.value = m[1];
+      tip('已自动填入房间号，点击「加入」即可进入房间');
+    }
+  }
+  function bootstrap() {
+    if (typeof window.Peer === 'function') { initApp(); return; }
+    var tries = 0;
+    var t = setInterval(function () {
+      if (typeof window.Peer === 'function') { clearInterval(t); initApp(); }
+      else if (++tries > 120) {
+        clearInterval(t);
+        tip('PeerJS 加载失败：请检查网络，或将 peerjs.min.js 放到 vendor 目录');
+      }
+    }, 100);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootstrap);
+  else bootstrap();
+})();
+</script>
+</body>
+</html>

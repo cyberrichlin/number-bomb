@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#15142a">
+<meta name="description" content="心口难开 · 2-10 人联机派对游戏，纯静态页面 + WebRTC 设备直连，无需服务器。">
+<title>心口难开 · 多人联机</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M14 32a18 18 0 0 1 36 0' stroke='%23ff5c9d' stroke-width='6' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='38' r='17' fill='%23332b5e'/%3E%3Crect x='21' y='4' width='22' height='15' rx='4' fill='%23ffd54a'/%3E%3Cpath d='M27 11.5h10' stroke='%23332b5e' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app" class="app"></div>
+<div id="toast" class="toast"></div>
+
+<!-- PeerJS：优先使用本地 vendor 副本，缺失时自动回退到 CDN（GitHub Pages 与本地预览都可用） -->
+<script src="vendor/peerjs.min.js"></script>
+<script>if (typeof Peer === 'undefined') { document.write('<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"><\/script>'); }</script>
+<script>if (typeof Peer === 'undefined') { document.write('<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"><\/script>'); }</script>
+
+<!-- 词库（浏览器版，与原 Node 版共用同一份数据） -->
+<script src="data/action.js"></script>
+<script src="data/word.js"></script>
+
+<!-- 纯静态 P2P 引擎与界面逻辑 -->
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

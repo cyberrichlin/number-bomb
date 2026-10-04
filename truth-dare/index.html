@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0a0d16">
+<meta name="description" content="真心话大冒险 · 纯静态网页小游戏，手机电脑都能玩，适合聚会喝酒、情侣互动。">
+<title>真心话大冒险</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='12' width='56' height='40' rx='9' fill='%23141a2b'/%3E%3Cpath d='M20 24q6-9 12 0 6-9 12 0 6 9-12 20-18-11-12-20z' fill='%23ff3d6e'/%3E%3C/svg%3E">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{height:100%}
+body{
+  height:100%;margin:0;overflow:hidden;
+  background:#0a0d16;
+  background-image:radial-gradient(900px 480px at 50% -10%,rgba(255,95,60,.20),transparent 62%),radial-gradient(760px 460px at 105% 105%,rgba(95,115,255,.16),transparent 60%);
+  color:#e9edf7;
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+input,button,select{font-family:inherit;font-size:16px}
+.hidden{display:none !important}
+.muted{color:#8b95b2;font-size:14px;margin:6px 0}
+.hint{color:#7b86a5;font-size:12.5px;line-height:1.6;margin:10px 0 0}
+h1,h2,h3{margin:0}
+h2{font-size:16px;margin-bottom:10px}
+
+/* ---------- 通用组件（与数字炸弹一致） ---------- */
+.card{
+  background:linear-gradient(180deg,rgba(26,32,54,.95),rgba(20,25,43,.95));
+  border:1px solid #232b47;border-radius:16px;padding:16px;
+  box-shadow:0 8px 24px rgba(0,0,0,.25);
+}
+.btn{
+  border:0;border-radius:12px;height:48px;padding:0 18px;
+  background:#242c49;color:#e9edf7;font-weight:600;cursor:pointer;
+  transition:transform .12s ease,filter .12s ease,opacity .12s ease;
+  display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;
+}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:linear-gradient(135deg,#ff8a3d,#ff3d6e);color:#fff;box-shadow:0 8px 20px rgba(255,80,90,.28)}
+.btn.block{width:100%;margin-top:14px}
+.btn:disabled{opacity:.42;cursor:not-allowed;box-shadow:none}
+.btn-row{display:flex;gap:10px;margin-top:14px}
+.btn-row .btn{flex:1 1 0;padding:0 10px}
+.mini{
+  border:1px solid #2c3556;background:#1b2238;color:#c8d1e6;
+  border-radius:9px;height:30px;padding:0 10px;font-size:12.5px;cursor:pointer;
+}
+.mini.ghost{background:transparent}
+
+/* ---------- 屏幕 ---------- */
+.screen{display:none;height:100%}
+.screen.active{display:flex;flex-direction:column}
+#screen-mode{overflow-y:auto}
+.home-wrap{margin:auto;width:100%;max-width:440px;padding:28px 18px calc(28px + env(safe-area-inset-bottom))}
+.brand{text-align:center;margin-bottom:22px}
+.logo{font-size:52px;line-height:1;filter:drop-shadow(0 6px 18px rgba(255,90,60,.5))}
+.brand h1{font-size:28px;margin:10px 0 4px;letter-spacing:2px}
+.brand p{color:#8b95b2;font-size:13.5px;margin:0}
+.foot-note{text-align:center;color:#5f6a88;font-size:12px;margin-top:20px;line-height:1.7}
+
+/* 模式选择：与数字炸弹「位数选择」一致的胶囊按钮 */
+.pills{display:flex;gap:8px;margin:0 0 2px}
+.pill{
+  flex:1 1 0;min-width:0;white-space:nowrap;text-align:center;
+  border:1px solid #2c3556;background:#161c30;color:#c8d1e6;border-radius:999px;
+  height:38px;padding:0 8px;font-size:14px;cursor:pointer;
+}
+.pill.on{background:linear-gradient(135deg,#ff8a3d,#ff3d6e);border-color:transparent;color:#fff;font-weight:600}
+
+/* ---------- 游戏页 ---------- */
+#screen-play{overflow:hidden}
+.topbar{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top));
+  background:rgba(13,17,32,.94);border-bottom:1px solid #1e2540;backdrop-filter:blur(8px);
+}
+.topbar .title{font-size:17px;font-weight:700;letter-spacing:1px}
+.topbar .mode-badge{
+  font-size:11.5px;color:#ffb020;border:1px solid #3a3350;background:#1b1a2c;border-radius:999px;padding:3px 9px;
+}
+.main{
+  flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px 12px calc(16px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch;
+}
+.center-box{margin:auto;width:100%;max-width:520px;display:flex;flex-direction:column;gap:12px}
+
+/* 二选一两个大按钮 */
+.pick-card{padding:18px 16px}
+.pick-card h2{font-size:16px;text-align:center;color:#c8d1e6;margin-bottom:14px}
+.pick-btn{
+  width:100%;height:64px;font-size:20px;font-weight:700;border-radius:14px;letter-spacing:2px;
+}
+.pick-btn + .pick-btn{margin-top:12px}
+.pick-btn.dare{background:linear-gradient(135deg,#ff8a3d,#ff3d6e);color:#fff;box-shadow:0 8px 22px rgba(255,80,90,.3)}
+.pick-btn.truth{background:#242c49;color:#e9edf7}
+
+/* 题目大卡片 */
+.q-card{
+  text-align:center;padding:28px 20px;
+  background:linear-gradient(180deg,#1c2340,#141a2c);border:1px solid #2c3556;
+  border-radius:20px;box-shadow:0 12px 34px rgba(0,0,0,.4);
+  animation:pop .22s ease;
+}
+@keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+.q-kicker{
+  display:inline-block;font-size:12.5px;font-weight:700;letter-spacing:2px;
+  border-radius:999px;padding:4px 12px;margin-bottom:18px;
+}
+.q-kicker.truth{background:rgba(255,138,61,.16);color:#ffb020;border:1px solid #45331f}
+.q-kicker.dare{background:rgba(65,140,255,.16);color:#79b0ff;border:1px solid #26375c}
+.q-text{
+  font-size:21px;line-height:1.85;font-weight:600;color:#fff;
+  letter-spacing:.5px;word-break:break-word;
+}
+.q-foot{margin-top:18px;font-size:12px;color:#6d7796}
+
+/* 桌面端微调 */
+@media (min-width:760px){
+  .brand h1{font-size:32px}
+  .q-text{font-size:23px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ 模式选择（主页） ============ -->
+<section id="screen-mode" class="screen active">
+  <div class="home-wrap">
+    <div class="brand">
+      <div class="logo">❤️</div>
+      <h1>真心话大冒险</h1>
+      <p>选一个模式，直接开玩 · 无需联机</p>
+    </div>
+
+    <div class="card">
+      <h2>选择模式</h2>
+      <div class="pills">
+        <button class="pill" data-action="mode" data-v="date">男女朋友版</button>
+        <button class="pill" data-action="mode" data-v="couple">情侣升级版</button>
+      </div>
+      <p class="hint">男女朋友版：大冒险池子温和，适合刚接触 / 暧昧期；情侣升级版：更亲密刺激，适合稳定情侣。两版真心话共用同一题库。点一下模式，直接开始抽题。</p>
+    </div>
+
+    <p class="foot-note">
+      玩法：选模式 → 真心话 / 大冒险 二选一 → 抽题 → 下一题 / 退出。<br>
+      同一局内抽过的题目不会重复，放心连抽。
+    </p>
+  </div>
+</section>
+
+<!-- ============ 游戏页 ============ -->
+<section id="screen-play" class="screen">
+  <header class="topbar">
+    <div class="title">真心话大冒险</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="mode-badge" class="mode-badge">男女朋友版</span>
+      <button class="mini ghost" data-action="exit">退出</button>
+    </div>
+  </header>
+  <main id="play-main" class="main"></main>
+</section>
+
+<script src="truth-dare.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  var MODE_LABEL = { date: '男女朋友版', couple: '情侣升级版' };
+
+  var S = {
+    mode: null,
+    deck: null,
+    kind: null,     // null | 'truth' | 'dare'
+    text: '',
+    cat: ''
+  };
+
+  function showScreen(id) {
+    var list = document.querySelectorAll('.screen');
+    for (var i = 0; i < list.length; i++) list[i].classList.remove('active');
+    $(id).classList.add('active');
+  }
+
+  /* ---------------- 渲染游戏区 ---------------- */
+  function renderPlay() {
+    $('mode-badge').textContent = MODE_LABEL[S.mode] || '';
+
+    if (!S.kind) {
+      $('play-main').innerHTML =
+        '<div class="center-box">' +
+          '<div class="card pick-card">' +
+            '<h2>选一个，开始抽题</h2>' +
+            '<button class="btn pick-btn dare" data-action="pick" data-v="dare">大冒险</button>' +
+            '<button class="btn pick-btn truth" data-action="pick" data-v="truth">真心话</button>' +
+            '<p class="hint" style="text-align:center;margin-top:14px">真心话与大冒险各自独立抽题，「下一题」会在同类型题库里继续抽。</p>' +
+          '</div>' +
+        '</div>';
+      return;
+    }
+
+    var isTruth = (S.kind === 'truth');
+    $('play-main').innerHTML =
+      '<div class="center-box">' +
+        '<div class="q-card">' +
+          '<span class="q-kicker ' + (isTruth ? 'truth' : 'dare') + '">' +
+            (isTruth ? '真心话' : '大冒险') + (S.cat && !isTruth ? ' · ' + catLabel(S.cat) : '') +
+          '</span>' +
+          '<div class="q-text">' + esc(S.text) + '</div>' +
+          '<div class="q-foot">已抽 ' + S.drawn + ' 题 · 同类型继续抽不重复</div>' +
+        '</div>' +
+        '<div class="btn-row">' +
+          '<button class="btn primary" data-action="next">下一题</button>' +
+          '<button class="btn" data-action="exit">退出</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  var CAT_LABEL = {
+    hand: '手部互动', shoulder: '肩颈与依偎', waist: '腰部与拥抱', face: '近距离对视',
+    drink: '饮品与喂食', carry: '公主抱与进阶', warm: '气氛升温',
+    kiss: '亲吻', sit: '坐姿', upper: '上身', vibe: '氛围'
+  };
+  function catLabel(k) { return CAT_LABEL[k] || ''; }
+
+  /* ---------------- 流程 ---------------- */
+  function chooseMode(mode) {
+    S.mode = (mode === 'couple') ? 'couple' : 'date';
+    S.deck = window.TruthDare.createDeck(S.mode);
+    S.kind = null; S.text = ''; S.cat = ''; S.drawn = 0;
+    showScreen('screen-play');
+    renderPlay();
+  }
+
+  function pick(kind) {
+    if (!S.deck) return;
+    S.kind = (kind === 'dare') ? 'dare' : 'truth';
+    var q = S.deck.draw(S.kind);
+    S.text = q.text; S.cat = q.cat || '';
+    S.drawn = 1;
+    renderPlay();
+  }
+
+  function next() {
+    if (!S.deck || !S.kind) return;
+    var q = S.deck.draw(S.kind);
+    S.text = q.text; S.cat = q.cat || '';
+    S.drawn++;
+    renderPlay();
+  }
+
+  function exitPlay() {
+    S.deck = null; S.kind = null; S.text = ''; S.cat = ''; S.drawn = 0;
+    showScreen('screen-mode');
+  }
+
+  document.addEventListener('click', function (e) {
+    var el = e.target && e.target.closest ? e.target.closest('[data-action]') : null;
+    if (!el) return;
+    var act = el.getAttribute('data-action');
+    if (act === 'mode') chooseMode(el.getAttribute('data-v'));
+    else if (act === 'pick') pick(el.getAttribute('data-v'));
+    else if (act === 'next') next();
+    else if (act === 'exit') exitPlay();
+  });
+})();
+</script>
+</body>
+</html>
