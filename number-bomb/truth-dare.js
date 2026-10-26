@@ -9,8 +9,8 @@
  *
  * 算法规则：
  *   - 每一局内，抽到过的题目 100 次内不重复（真心话池 / 大冒险池各自独立计数）
- *   - 大冒险第 1 条（牵手 10 分钟）：本局前 3 次抽大冒险必出一次，
- *     出现一次后即从本局大冒险池永久移除
+ *   - 男女朋友版：首条（牵手 10 分钟）在本局前 3 次大冒险内随机出现一次，
+ *     出现后从本局大冒险池永久移除；情侣升级版不启用此规则
  *   - 男女朋友版大冒险按 7 类加权随机；某类抽完后从权重中剔除并重新归一化
  *   - 情侣升级版大冒险按 4 类均匀随机
  * ===================================================================== */
@@ -305,7 +305,7 @@
   /* 大冒险第一条（本局前 3 次必出，出过后永久移除） */
   var FIRST_DARE = DARE_DATE.hand[0];
 
-  var HISTORY_LIMIT = 100;   // 抽到过的题目 100 次内不重复
+  var HISTORY_LIMIT = 150;   // 真心话题库约 103 条，设 150 避免去重窗口过窄导致循环范围过小
 
   function shuffle(arr) {
     for (var i = arr.length - 1; i > 0; i--) {
@@ -337,7 +337,7 @@
    *   mode: 'date'（男女朋友版） | 'couple'（情侣升级版）
    * 真心话池 / 大冒险池各自独立计数与去重。
    *
-   * 去重策略：真心话用 usedTruths 记录本局已抽出的题（上限 HISTORY_LIMIT=100）；
+   * 去重策略：真心话用 usedTruths 记录本局已抽出的题（上限 HISTORY_LIMIT=150），题库约 103 条，设 150 避免去重窗口过窄导致循环范围过小；
    * 大冒险用「分类剩余池 remaining」记录——抽走即从池中移除，
    * 天然保证同一局内不重复，且某类抽完自动退出加权 / 均匀抽选。
    * ===================================================================== */
@@ -346,6 +346,7 @@
     this.usedTruths = [];       // 真心话：本局已抽出的题
     this.dareCount = 0;         // 本局已抽大冒险次数（含首条）
     this.firstDareUsed = false; // 首条是否已出现
+    this.firstDareThreshold = (mode === 'couple') ? Infinity : Math.floor(Math.random() * 3);
     this._resetDarePools();
   }
 
@@ -357,8 +358,8 @@
     for (var i = 0; i < order.length; i++) {
       this.remaining[order[i]] = pool[order[i]].slice();
     }
-    // 首条若已抽过 → 永久移除
-    if (this.firstDareUsed) this._removeFrom('hand', FIRST_DARE);
+    // date 版：首条只由「强制首条位」发放，不进入普通随机池
+    if (this.mode !== 'couple') this._removeFrom('hand', FIRST_DARE);
   };
 
   Deck.prototype._removeFrom = function (cat, text) {
@@ -390,8 +391,8 @@
 
   /* ---- 大冒险 ---- */
   Deck.prototype.dare = function () {
-    // 规则 1：本局前 3 次大冒险必出首条
-    if (!this.firstDareUsed && this.dareCount < 3) {
+    // 规则 1：男女朋友版，首条在本局前 3 次大冒险内随机出现一次
+    if (!this.firstDareUsed && this.dareCount === this.firstDareThreshold) {
       this.firstDareUsed = true;
       this._removeFrom('hand', FIRST_DARE);   // 出现一次即从本局池永久移除
       this.dareCount++;

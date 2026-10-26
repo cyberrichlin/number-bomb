@@ -591,9 +591,9 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
       h.winner = { num: num, name: p.name, value: v };
       h.phase = 'over';
     } else {
-      // 收缩边界时把本次所猜数字包含在内：猜小→下界=所猜数字；猜大→上界=所猜数字
-      if (v < S.bomb) h.range.min = Math.max(h.range.min, v);
-      else h.range.max = Math.min(h.range.max, v);
+      // 猜错后收缩范围：把已猜错的数字排除出范围——猜小→下界=v+1；猜大→上界=v-1
+      if (v < S.bomb) h.range.min = Math.min(h.range.max, Math.max(h.range.min, v + 1));
+      else h.range.max = Math.max(h.range.min, Math.min(h.range.max, v - 1));
       h.turn = nextOnlineNum(num);
     }
     hostBroadcast();
@@ -605,9 +605,10 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     var digits, value;
     if (cfg.mode === 'fixed') {
       var raw = digitsOnly(cfg.value);
-      if (!raw || raw === '0' || raw.length > 6) { toast('请输入 1~6 位正整数作为炸弹'); return; }
+      if (!raw || raw.length > 6) { toast('请输入 1~6 位正整数作为炸弹'); return; }
       value = parseInt(raw, 10);
-      digits = raw.length;
+      if (!isFinite(value) || value < 1) { toast('请输入 1~6 位正整数作为炸弹'); return; }
+      digits = String(value).length;
     } else {
       digits = Math.min(6, Math.max(1, parseInt(cfg.digits, 10) || 2));
       var lo = 1;
