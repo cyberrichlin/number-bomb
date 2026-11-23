@@ -210,12 +210,27 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
 .q-kicker.dare{background:rgba(65,140,255,.16);color:#79b0ff;border:1px solid #26375c}
 .q-text{font-size:21px;line-height:1.85;font-weight:600;color:#fff;letter-spacing:.5px;word-break:break-word}
 .q-foot{margin-top:18px;font-size:12px;color:#6d7796}
+.drink-banner{margin-top:14px;background:rgba(255,138,61,.16);border:1px solid #ff8a3d;border-radius:14px;padding:14px;text-align:center}
+.drink-banner b{font-size:19px;color:#ffb020}
+.drink-banner p{margin:6px 0 0;font-size:13px;color:#c8d1e6}
+.skip-note{text-align:center;font-size:12.5px;color:#8b95b2;margin-top:10px}
 .tada-wrap{margin:auto;width:100%;max-width:520px;display:flex;flex-direction:column;gap:12px}
 .tada-layer{position:fixed;inset:0;z-index:70;display:flex;padding:20px;background:rgba(5,8,16,.86);
   backdrop-filter:blur(4px);overflow-y:auto;animation:pop .2s ease}
 .tada-layer.hidden{display:none}
 .tada-head{text-align:center;font-size:17px;font-weight:700;letter-spacing:.5px;color:#ffb020;line-height:1.6}
 .tada-head b{color:#fff}
+/* ---------- 大转盘（融合版，居中页只留转盘+按钮+一行结果） ---------- */
+.wheel-wrap{margin:auto;width:100%;max-width:520px;display:flex;flex-direction:column;align-items:center;gap:14px;background:#0b0f1c;border:1px solid #232b47;border-radius:20px;padding:20px 16px;box-shadow:0 14px 34px rgba(0,0,0,.5)}
+.wheel-box{position:relative;width:min(320px,84vw);height:min(320px,84vw)}
+.wheel-canvas{width:100%;height:100%;border-radius:50%;box-shadow:0 14px 34px rgba(0,0,0,.45);border:4px solid #232b47}
+.wheel-pointer{position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;border-top:42px solid #ff2d55;z-index:3;filter:drop-shadow(0 3px 6px rgba(0,0,0,.6))}
+.wheel-result{min-height:56px;width:100%;text-align:center;font-size:17px;line-height:1.7;color:#e9edf7}
+.wheel-result b{color:#ffb020}
+.wheel-result-empty{min-height:56px}
+.wheel-btns{display:flex;gap:10px;width:100%}
+.wheel-btns .btn{flex:1;white-space:nowrap;padding:0 6px;font-size:14px}
+.wheel-confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:80}
 @media (min-width:760px){.q-text{font-size:23px}}
 
 /* 桌面端微调 */
@@ -251,7 +266,7 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
         <div class="or"><span>或加入已有房间</span></div>
 
         <div class="join-row">
-          <input id="input-code" type="text" inputmode="numeric" maxlength="6" placeholder="6 位房间号" autocomplete="off">
+          <input id="input-code" type="text" inputmode="numeric" maxlength="3" placeholder="3 位房号" autocomplete="off">
           <button class="btn" data-action="join">加入</button>
         </div>
 
@@ -264,7 +279,7 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
       </div>
 
       <p class="foot-note">
-        两台设备打开同一网址：一方点「创建房间」拿到 6 位房间号，<br>
+        两台设备打开同一网址：一方点「创建房间」拿到 3 位房号，<br>
         另一方输入房间号即可自动建立设备直连（P2P），人数不限。
       </p>
     </div>
@@ -352,7 +367,7 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
   function $(id) { return document.getElementById(id); }
   function rand6() {
     var s = '';
-    for (var i = 0; i < 6; i++) s += Math.floor(Math.random() * 10);
+    for (var i = 0; i < 3; i++) s += Math.floor(Math.random() * 10);
     return s;
   }
   function digitsOnly(v) { return String(v == null ? '' : v).replace(/[^0-9]/g, ''); }
@@ -393,6 +408,10 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     lastPhase: null,
     busy: false,
     tadaDeck: null,    // 房主侧：本轮联机真心话大冒险的抽题器（房主抽题，P2P 同步）
+    wheelPrevAngle: 0,  // 大转盘：上次渲染已转到的累计角度（防重渲染跳变）
+    wheelPrevTarget: -1, // 大转盘：上次渲染的目标格
+    wheelConfettiFor: -1, // 大转盘：已撒花的那一格（每格只撒一次）
+    wheelTimer: null,   // 房主侧：转盘转完后置 wheelDone 的定时器
     // 单独玩 · 真心话大冒险（不建房、不联机）
     solo: { mode: null, deck: null, kind: null, text: '', cat: '', drawn: 0 },
     inputCache: { 'input-guess': '', 'input-bomb': '' },
@@ -427,7 +446,10 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
       hostNum: 1,
       config: { mode: 'digits', digits: 2, value: '' },
       // 游戏结束惩罚（真心话大冒险）——房主可操作，变更即同步给联机玩家
-      penalty: { enabled: true, mode: 'date' },
+      penalty: { enabled: true, mode: 'date', kind: 'tada' },
+      penaltySkips: 0,    // 本局炸弹的惩罚已换题次数（真心话+大冒险合计，关了重开也不清零）
+      penaltyDrink: false, // 本局已换满 3 次，须先喝一杯
+      penaltyDone: false,  // 本局惩罚已完成/已认罚，关了不能再重开
       tada: null          // 联机会话：{open, kind, text, cat, drawn, by}
     };
   }
@@ -445,10 +467,15 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
       digits: h.digits,
       winner: h.winner ? { num: h.winner.num, name: h.winner.name, value: h.winner.value } : null,
       hostNum: h.hostNum,
-      penalty: { enabled: !!h.penalty.enabled, mode: h.penalty.mode },
+      penalty: { enabled: !!h.penalty.enabled, mode: h.penalty.mode, kind: h.penalty.kind || 'tada' },
+      penaltyDone: !!h.penaltyDone,
       tada: h.tada ? {
         open: !!h.tada.open, kind: h.tada.kind, text: h.tada.text,
-        cat: h.tada.cat, drawn: h.tada.drawn, by: h.tada.by
+        cat: h.tada.cat, drawn: h.tada.drawn, by: h.tada.by,
+        skips: h.tada.skips || 0, skipLimit: 3, drink: !!h.tada.drink,
+        wheelTarget: (h.tada.wheelTarget != null ? h.tada.wheelTarget : -1),
+        wheelAngle: h.tada.wheelAngle || 0, wheelDone: !!h.tada.wheelDone,
+        wheelVer: h.tada.wheelVer || 'date'
       } : null
     };
   }
@@ -536,10 +563,14 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     if (!entry.num) return;
     if (data.t === 'tada') {
       // 真心话大冒险：一律由房主抽题后广播，保证所有玩家看到同一道题
+      // 选真心话/大冒险那一步谁都能点；进去题目后，换题/完成只有被罚的人能点，房主端按发送者编号拦截
       if (data.act === 'open') hostTadaOpen();
       else if (data.act === 'pick') hostTadaPick(data.kind);
-      else if (data.act === 'next') hostTadaNext();
-      else if (data.act === 'close') hostTadaClose();
+      else if (data.act === 'next') hostTadaNext(entry.num);
+      else if (data.act === 'close') hostTadaClose(entry.num);
+      else if (data.act === 'wheel-spin') hostWheelSpin(entry.num);
+      else if (data.act === 'wheel-drink') hostWheelDrink(entry.num);
+      else if (data.act === 'wheel-done') hostWheelDone(entry.num);
       return;
     }
     if (data.t === 'guess') {
@@ -622,6 +653,9 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     h.history = [];
     h.winner = null;
     h.tada = null;              // 新一局：清空上一局的惩罚会话（惩罚开关与模式保留）
+    if (S.wheelTimer) { clearTimeout(S.wheelTimer); S.wheelTimer = null; }
+    S.wheelPrevAngle = 0; S.wheelPrevTarget = -1; // 新一局：清空转盘会话
+    h.penaltySkips = 0; h.penaltyDrink = false; h.penaltyDone = false; // 新一局炸弹，换题次数重新给 3 次
     S.tadaDeck = null;
     h.phase = 'playing';
     h.turn = firstOnlineNum();
@@ -636,6 +670,9 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     h.phase = 'lobby';
     h.winner = null;
     h.tada = null;
+    if (S.wheelTimer) { clearTimeout(S.wheelTimer); S.wheelTimer = null; }
+    S.wheelPrevAngle = 0; S.wheelPrevTarget = -1; // 返回大厅：清空转盘会话
+    h.penaltySkips = 0; h.penaltyDrink = false; h.penaltyDone = false;
     S.tadaDeck = null;
     h.history = [];
     h.players.forEach(function (p) { p.guesses = []; });
@@ -686,6 +723,7 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     }
 
     if (s.phase === 'over' && S.lastPhase !== 'over') openModal(overModalHtml(s));
+    if (s.phase === 'over' && !$('modal').classList.contains('hidden')) $('modal-card').innerHTML = overModalHtml(s); // 惩罚完成后刷新弹层，别留旧的接受/跳过按钮
     if (s.phase !== 'over' && !$('modal').classList.contains('hidden')) closeModal();
 
     renderTada(s);
@@ -732,10 +770,11 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     if (S.role === 'host') {
       h += hostSetupHtml(s);
     } else {
-      var pen = s.penalty || { enabled: true, mode: 'date' };
+      var pen = s.penalty || { enabled: true, mode: 'date', kind: 'tada' };
+      var penKind = pen.kind || 'tada';
       h += '<div class="card"><h2>等待房主设置炸弹</h2><p class="muted">房主设置炸弹后会立即开始，请稍候…</p>' +
-           '<p class="hint">当前房间人数：' + s.players.length + ' 人<br>游戏结束惩罚（真心话大冒险）：' +
-           (pen.enabled ? ('已开启 · ' + TADA_MODE_LABEL[pen.mode]) : '未开启') + '</p></div>';
+           '<p class="hint">当前房间人数：' + s.players.length + ' 人<br>游戏结束惩罚：' +
+           (pen.enabled ? ('已开启 · ' + (penKind === 'wheel' ? '大转盘' : TADA_MODE_LABEL[pen.mode])) : '未开启') + '</p></div>';
     }
     return h;
   }
@@ -777,20 +816,29 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
      · 开关关闭时模式区整块不渲染，不占位
      · 宽度与卡片内容对齐，不产生横向溢出 */
   function penaltyBoxHtml(s) {
-    var p = (S.host && S.host.penalty) || s.penalty || { enabled: true, mode: 'date' };
+    var p = (S.host && S.host.penalty) || s.penalty || { enabled: true, mode: 'date', kind: 'tada' };
+    var kind = p.kind || 'tada';
     var h = '<div class="penalty-box">';
     h += '<div class="switch-row">' +
-           '<div><div class="lb">猜中炸弹后玩真心话大冒险</div>' +
-           '<div class="sd">开启后，游戏结束时猜中炸弹的人接受真心话 / 大冒险惩罚</div></div>' +
+           '<div><div class="lb">猜中炸弹后接受惩罚</div>' +
+           '<div class="sd">开启后，游戏结束时猜中炸弹的人接受惩罚</div></div>' +
            '<div class="switch' + (p.enabled ? ' on' : '') + '" data-action="penalty-toggle" role="switch" aria-checked="' +
            (p.enabled ? 'true' : 'false') + '"></div>' +
          '</div>';
     if (p.enabled) {
       h += '<div class="pills pills-2">' +
+             '<button class="pill' + (kind === 'tada' ? ' on' : '') + '" data-action="penalty-kind" data-v="tada">真心话大冒险</button>' +
+             '<button class="pill' + (kind === 'wheel' ? ' on' : '') + '" data-action="penalty-kind" data-v="wheel">大转盘</button>' +
+           '</div>';
+      h += '<div class="pills pills-2">' +
              '<button class="pill' + (p.mode === 'date' ? ' on' : '') + '" data-action="penalty-mode" data-v="date">男女朋友版</button>' +
              '<button class="pill' + (p.mode === 'couple' ? ' on' : '') + '" data-action="penalty-mode" data-v="couple">情侣升级版</button>' +
            '</div>';
-      h += '<p class="hint">男女朋友版：大冒险池子温和，适合刚接触 / 暧昧期；情侣升级版：更亲密刺激，适合稳定情侣。两版真心话共用同一题库。设置会同步给所有联机玩家。</p>';
+      if (kind === 'tada') {
+        h += '<p class="hint">男女朋友版：大冒险池子温和，适合刚接触 / 暧昧期；情侣升级版：更亲密刺激，适合稳定情侣。两版真心话共用同一题库。设置会同步给所有联机玩家。</p>';
+      } else {
+        h += '<p class="hint">大转盘' + wheelList(p.mode).length + '格，转到什么做什么，不想做就喝半杯。</p>';
+      }
     } else {
       h += '<p class="hint">已关闭。打开后设置会同步给所有联机玩家，游戏结束时出现「接受惩罚」入口。</p>';
     }
@@ -868,16 +916,27 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     if (w) h += '<p class="over-line"><b>#' + w.num + ' ' + esc(w.name) + '</b> 猜中了炸弹数字 <b class="big">' + w.value + '</b>！</p>';
     h += '<p class="muted">本局共 ' + s.history.length + ' 次猜测</p>';
 
-    if (pen) {
-      // 惩罚开启：猜中信息下方加一行小字 + 三个按钮（接受惩罚 / 跳过惩罚 / 返回大厅）
-      h += '<p class="penalty-tip">本轮惩罚：真心话大冒险</p>';
+    if (pen && !s.penaltyDone) {
+      // 惩罚开启且本局还没完成：接受惩罚 / 跳过惩罚 / 返回大厅
+      var penKind = (s.penalty && s.penalty.kind) || 'tada';
+      h += '<p class="penalty-tip">本轮惩罚：' + (penKind === 'wheel' ? '大转盘' : '真心话大冒险') + '</p>';
       h += '<div class="btn-row" style="margin-top:16px">' +
            '<button class="btn primary" data-action="accept-penalty" style="flex:1 1 100%">接受惩罚</button>' +
            '</div>';
       h += '<div class="btn-row">' +
-           '<button class="btn" data-action="skip-penalty">跳过惩罚</button>' +
+           '<button class="btn" data-action="skip-penalty">跳过惩罚，先喝' + (penKind === 'wheel' ? '半杯' : '一杯') + '</button>' +
            '<button class="btn" data-action="lobby">返回大厅</button>' +
            '</div>';
+    } else if (pen && s.penaltyDone) {
+      h += '<p class="penalty-tip">本轮惩罚已完成</p>';
+      h += '<div class="btn-row">';
+      if (S.role === 'host') {
+        h += '<button class="btn primary" data-action="again">再来一局</button>' +
+             '<button class="btn" data-action="lobby">返回大厅</button>';
+      } else {
+        h += '<button class="btn" data-action="close-modal">知道了</button>';
+      }
+      h += '</div>';
     } else {
       h += '<div class="btn-row">';
       if (S.role === 'host') {
@@ -905,6 +964,16 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
   var TADA_EMPTY = '真心话大冒险题库未加载：请确认 truth-dare.js 与 index.html 在同一目录。';
 
   function tadaReady() { return !!(window.TruthDare && window.TruthDare.Deck); }
+  // 被罚的人编号：tada.by 优先，否则 winner.num；0 表示未知
+  function tadaByNum(s) {
+    if (s && s.tada && s.tada.by) return s.tada.by;
+    if (s && s.winner && s.winner.num) return s.winner.num;
+    return 0;
+  }
+  function isTadaActor(s) {
+    var by = tadaByNum(s);
+    return by ? (S.myNum === by) : true; // 编号未知时不误拦（单机/旧状态兜底）
+  }
   function tadaNewDeck(mode) { return new window.TruthDare.Deck(mode); }
 
   /* 题目卡片（联机层与独立版共用渲染） */
@@ -920,15 +989,260 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     return h;
   }
 
+  /* =================================================================
+     大转盘（融合版）
+     · 50 格：前 31 条沿用 32 格版（去掉「你一口我一口」），后 19 条取自
+       男女朋友版大冒险 DARE_DATE）；标题/做法/秒数 s 不变，不用升级版
+     · 房主抽签 + 广播角度，两端看到同一格；客户端只按广播渲染，不自己随机
+     · 居中页只留转盘 + 下面一排按钮 + 一行结果（标题+做法），无其他文字
+     ================================================================= */
+  var WHEEL_ACTIONS = [
+    {t:"十指紧扣",d:"两个人十指紧扣，坚持 1 分钟，中间不许松开。",s:60},
+    {t:"靠肩喝半杯",d:"一个人靠在另一个人肩上，把半杯喝完再起来。",s:0},
+    {t:"额头贴额头",d:"额头贴额头，坚持 30 秒，谁先笑谁多喝一口。",s:30},
+    {t:"脸颊贴脸颊",d:"脸颊贴脸颊，坚持 30 秒，贴紧了不许躲。",s:30},
+    {t:"手放对方腿上",d:"把手轻轻放对方腿上，保持 1 分钟，不许拿开。",s:60},
+    {t:"手心写字",d:"一个人在另一个人手心里写一个字，猜对了换人写，猜错喝一口。",s:0},
+    {t:"牵手不松到下一轮",d:"从现在起一直牵着手，直到下一轮转完才能松开。",s:0},
+    {t:"对视不笑",d:"两个人对视 30 秒，谁先笑谁喝半杯，输的人被捏一下脸颊。",s:30},
+    {t:"搭肩一分钟",d:"把手搭在对方肩上，保持 1 分钟，肩膀不许离开。",s:60},
+    {t:"桌下脚碰脚",d:"桌子下面脚碰脚，保持 1 分钟，不许躲开。",s:60},
+    {t:"耳边悄悄话",d:"凑到对方耳边说一句悄悄话，说完脸颊贴一下。",s:0},
+    {t:"坐着抱抱",d:"侧身抱住对方，坚持 30 秒，抱紧了不许松。",s:30},
+    {t:"小拇指拉钩",d:"两人小拇指拉钩，说一句「不许反悔」，保持5秒。",s:0},
+    {t:"手心贴手心",d:"两人手心贴手心，比谁的手大，保持5秒。",s:0},
+    {t:"指尖碰指尖",d:"两人轮流用指尖碰对方指尖，像触电，持续5秒。",s:0},
+    {t:"握手腕数心跳",d:"握住对方手腕，数10秒心跳。",s:10},
+    {t:"捏一下脸蛋",d:"轻轻捏一下对方脸蛋，看反应。",s:0},
+    {t:"肩膀贴肩膀",d:"两人肩膀贴肩膀坐10秒不说话。",s:10},
+    {t:"下巴搁肩上",d:"把下巴轻轻搁在对方肩上，停5秒。",s:0},
+    {t:"拨头发到耳后",d:"帮对方把头发拨到耳后，动作慢一点。",s:0},
+    {t:"轻搂腰5秒",d:"轻轻搂住对方的腰，保持5秒。",s:0},
+    {t:"手搭腰上5秒",d:"一只手轻搭对方腰上，保持5秒不说话。",s:0},
+    {t:"鼻尖碰鼻尖",d:"两人鼻尖碰鼻尖，停5秒分开。",s:0},
+    {t:"轻碰嘴唇一下",d:"用指尖轻碰一下对方嘴唇，碰一下就收回。",s:0},
+    {t:"耳边说情话",d:"对着对方耳朵，用最小声音说一句情话。",s:0},
+    {t:"轻点鼻尖",d:"用指尖轻点对方鼻尖，说「小笨蛋」。",s:0},
+    {t:"喂一颗零食",d:"喂对方吃一颗你手里的零食/葡萄。",s:0},
+    {t:"同吸管喝一口",d:"用你的吸管，让对方喝一口你的饮料，保持5秒。",s:0},
+    {t:"听心跳5秒",d:"让对方听你心跳，耳朵贴你胸口5秒。",s:0},
+    {t:"手拉手闭眼",d:"两人手拉手，闭眼10秒，感受对方。",s:10},
+    {t:"手背轻亲一下",d:"轻在对方手背上亲一下，说「谢谢配合」。",s:0},
+    {t:"靠肩30秒",d:"把头靠在对方肩膀上，保持30秒，不许躲。",s:30},
+    {t:"靠肩说情话",d:"让对方靠在你肩上，你轻轻说一句情话。",s:0},
+    {t:"肩膀接头",d:"让对方靠过来，你用肩膀接住他/她的头，保持10秒。",s:10},
+    {t:"背后轻抱",d:"从背后轻抱对方，双手搭在腰前数5秒。",s:5},
+    {t:"搂腰耳语",d:"轻搂对方腰，在耳边说「你好瘦/好有料」，保持5秒。",s:5},
+    {t:"侧面搂腰",d:"轻从侧面搂对方腰，问一句「能搂吗」。",s:0},
+    {t:"手臂圈腰",d:"用手臂轻圈对方腰，问「你腰真细/真结实」，保持5秒。",s:5},
+    {t:"轻碰耳垂",d:"轻碰一下对方耳垂，碰一下就收回，保持5秒。",s:5},
+    {t:"脖边呼气",d:"把脸凑近对方脖子旁边，呼一口气（不碰到），保持5秒。",s:5},
+    {t:"揉揉后颈",d:"轻轻揉一下对方后颈，保持5秒。",s:5},
+    {t:"腿放腿上",d:"让对方把一只脚的大腿放在自己腿上，保持1分钟。",s:60},
+    {t:"对方抱你",d:"让对方抱你一下，你数对方抱了几秒。",s:0},
+    {t:"并排轻抱",d:"两人并排坐着轻抱一下，不超5秒，看谁先松手。",s:5},
+    {t:"披衣搂一下",d:"把外套披在对方肩上，顺手搂一下，保持5秒。",s:5},
+    {t:"埋肩搂腰",d:"轻搂对方腰，把头埋在他/她肩膀上，保持5秒。",s:5},
+    {t:"尝一口碗里",d:"让对方尝一口你碗里的东西，用同一双筷子/勺子。",s:0},
+    {t:"喂一颗糖",d:"让对方张开嘴，你喂一颗糖进去。",s:0},
+    {t:"交杯酒",d:"两人手臂交缠，各喝一口自己的酒，眼睛看着对方。",s:0},
+    {t:"一起深呼吸",d:"两人一起做3次深呼吸，看谁先笑。",s:0}
+  ];
+  /* 情侣升级版转盘：40 格（原 29 条去掉站/墙/躺的 6 条，留 3 条俯身，加新批的 11 条，再补 6 条同风格）。 */
+  var WHEEL_COUPLE = [
+    {t:"亲吻30秒",d:"亲吻对方，保持30秒。",s:30},
+    {t:"舌吻30秒",d:"和对方舌吻，保持30秒。",s:30},
+    {t:"咬下唇",d:"咬对方下唇，持续5秒。",s:5},
+    {t:"嘴唇划脸",d:"用嘴唇从对方眉心慢慢划到下巴，保持10秒。",s:10},
+    {t:"亲锁骨耳根",d:"亲吻对方锁骨/耳根，持续15秒。",s:15},
+    {t:"亲胸口",d:"隔着衣服亲吻对方胸口，持续10秒。",s:10},
+    {t:"轻咬手指",d:"把对方的手指放到唇边轻咬一下，保持5秒。",s:5},
+    {t:"舔嘴唇",d:"用舌尖轻轻舔对方嘴唇一圈，停5秒。",s:5},
+    {t:"坐腿上",d:"让对方坐在自己腿上，保持1分钟。",s:60},
+    {t:"躺怀里",d:"让对方躺在你怀里，你一手搂腰一手摸头，保持1分钟。",s:60},
+    {t:"俯身蹭鼻尖",d:"让对方靠在椅背/沙发上，你俯身凑近，鼻尖蹭鼻尖10秒。",s:10},
+    {t:"俯身停10秒",d:"让对方靠在沙发/椅背上，你俯身凑近，停10秒不说话。",s:10},
+    {t:"按住俯身",d:"把对方轻轻按在沙发/椅背上，俯身靠近，停10秒。",s:10},
+    {t:"背后抱腰",d:"从背后抱住对方，双手环住腰，保持1分钟。",s:60},
+    {t:"手贴腰侧",d:"把手从对方衣服下摆伸进去，贴住腰侧皮肤，保持10秒。",s:10},
+    {t:"互滑后背",d:"互相用手滑过后背，从脖子到腰，持续10秒。",s:10},
+    {t:"解一颗纽扣",d:"解开对方一颗上衣纽扣（仅一颗），保持5秒。",s:5},
+    {t:"解bra搭扣",d:"尝试解开对方bra后背搭扣（解不开就算），保持5秒。",s:5},
+    {t:"鼻尖摩擦",d:"和对方鼻尖摩擦，手抚后脑勺，保持10秒。",s:10},
+    {t:"深吻10秒",d:"把舌头伸进对方嘴里，持续10秒（深吻版）。",s:10},
+    {t:"趴胸口听心跳",d:"趴在对方胸口，听心跳10秒。",s:10},
+    {t:"边吻边抚",d:"一边接吻，一边用手轻抚对方后颈/后脑勺，持续30秒。",s:30},
+    {t:"一路吻到锁骨",d:"让对方闭眼，你从额头、鼻尖、嘴唇一路轻轻吻下去，停在锁骨。",s:0},
+    {t:"轻吻手腕",d:"轻吻对方手腕内侧，停5秒。",s:5},
+    {t:"咬耳垂",d:"咬对方耳垂一下，停3秒。",s:3},
+    {t:"嘴唇蹭脖子",d:"用嘴唇蹭一下对方脖子，停5秒。",s:5},
+    {t:"亲一下锁骨",d:"亲一下对方锁骨，停5秒。",s:5},
+    {t:"跨坐腿上",d:"跨坐在对方腿上，搂着对方脖子，保持30秒。",s:30},
+    {t:"侧坐腿上",d:"侧坐在对方腿上，头靠对方肩膀，停30秒。",s:30},
+    {t:"坐腿搂腰摇",d:"让对方坐在自己腿上，搂着腰摇一摇，停10秒。",s:10},
+    {t:"手贴后背",d:"把手从对方衣服下摆伸进去，贴住后背皮肤，停10秒。",s:10},
+    {t:"隔衣抚腰侧",d:"隔着衣服轻抚对方腰侧，停10秒。",s:10},
+    {t:"额头相抵",d:"并排坐着，额头相抵，闭眼10秒。",s:10},
+    {t:"抱着听心跳",d:"抱着对方，耳朵贴对方胸口听心跳，停10秒。",s:10},
+    {t:"轻吻耳后",d:"轻吻对方耳后，停5秒。",s:5},
+    {t:"坐腿环脖子",d:"让对方坐在你腿上，双手环住你脖子，停30秒。",s:30},
+    {t:"双腿放大腿",d:"双腿放在对方大腿上，停30秒。",s:30},
+    {t:"背上写字",d:"隔着衣服，用手指在对方背上写字，停10秒。",s:10},
+    {t:"背后抱搁下巴",d:"从背后抱住对方，下巴搁在对方肩上，停30秒。",s:30},
+    {t:"脸贴脸颊蹭",d:"抱着对方，脸贴对方脸颊，蹭一蹭，停10秒。",s:10}
+  ];
+  function wheelList(mode) { return mode === 'couple' ? WHEEL_COUPLE : WHEEL_ACTIONS; }
+  var WHEEL_COLORS = ["#ff8a3d","#ff5c9d","#7c5cff","#ff3d6e","#ffb03d","#5cb8ff","#4ade80","#f472b6","#ff7a59","#a78bfa","#34d399","#fbbf24","#fb7185","#38bdf8","#a3e635","#f472b6"];
+  function drawWheelCanvas(cv, list) {
+    var ctx = cv.getContext("2d");
+    var cx = 320, cy = 320, r = 310;
+    ctx.clearRect(0, 0, 640, 640);
+    list = list || WHEEL_ACTIONS;
+    var N = list.length;
+    for (var i = 0; i < N; i++) {
+      var step = Math.PI * 2 / N;
+      var a0 = i * step - Math.PI / 2, a1 = a0 + step;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, a0, a1); ctx.closePath();
+      ctx.fillStyle = WHEEL_COLORS[i % WHEEL_COLORS.length]; ctx.fill();
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(a0 + step / 2);
+      ctx.fillStyle = "#fff"; ctx.font = "bold 18px sans-serif"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      var label = list[i].t.replace(/\s/g, ""); label = label.length > 4 ? label.slice(0, 4) : label;
+      ctx.fillText(label, r - 18, 0); ctx.restore();
+    }
+    ctx.beginPath(); ctx.arc(cx, cy, 58, 0, Math.PI * 2); ctx.fillStyle = "#0a0d16"; ctx.fill();
+  }
+  // 转盘转完撒花：满屏彩纸飘约 2.8 秒，不挡点击，播完自动清理
+  function launchWheelConfetti() {
+    var old = document.querySelector('.wheel-confetti');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    var cv = document.createElement('canvas');
+    cv.className = 'wheel-confetti';
+    cv.width = window.innerWidth; cv.height = window.innerHeight;
+    document.body.appendChild(cv);
+    var ctx = cv.getContext('2d');
+    var W = cv.width, H = cv.height, N = 120, parts = [], i;
+    for (i = 0; i < N; i++) {
+      parts.push({
+        x: Math.random() * W, y: -20 - Math.random() * 220,
+        w: 6 + Math.random() * 7, h: 8 + Math.random() * 8,
+        vy: 2.2 + Math.random() * 3.2, vx: -1.2 + Math.random() * 2.4,
+        rot: Math.random() * Math.PI * 2, vr: -0.12 + Math.random() * 0.24,
+        color: WHEEL_COLORS[Math.floor(Math.random() * WHEEL_COLORS.length)],
+        round: Math.random() < 0.35
+      });
+    }
+    var t0 = Date.now(), DUR = 2800;
+    (function frame() {
+      var el = Date.now() - t0;
+      if (el >= DUR || !cv.parentNode) {
+        if (cv.parentNode) cv.parentNode.removeChild(cv);
+        return;
+      }
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalAlpha = el > DUR - 800 ? Math.max(0, (DUR - el) / 800) : 1;
+      for (i = 0; i < N; i++) {
+        var p = parts[i];
+        p.y += p.vy; p.x += p.vx + Math.sin((el / 300) + i) * 0.6; p.rot += p.vr;
+        if (p.y > H + 30) { p.y = -20; p.x = Math.random() * W; }
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        if (p.round) { ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2); ctx.fill(); }
+        else ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(frame);
+    })();
+  }
+  function renderWheel(s) {
+    var layer = $('tada-layer');
+    if (!layer) return;
+    var t = s && s.tada;
+    if (!t || !t.open) {
+      S.wheelPrevAngle = 0; S.wheelPrevTarget = -1; S.wheelConfettiFor = -1;
+      if (!layer.classList.contains('hidden')) { layer.classList.add('hidden'); layer.innerHTML = ''; }
+      return;
+    }
+    var target = (t.wheelTarget != null ? t.wheelTarget : -1);
+    var angle = t.wheelAngle || 0;
+    var done = !!t.wheelDone;
+    var spun = target >= 0;
+    var actor = isTadaActor(s);
+    var list = wheelList(t.wheelVer || (s.penalty && s.penalty.mode) || 'date');
+    // 转完、结果一出来就撒一次花（就地更新和重建两条路都会经过这里，每格只撒一次）
+    if (target === -1) S.wheelConfettiFor = -1;
+    else if (spun && done && S.wheelConfettiFor !== target) { S.wheelConfettiFor = target; launchWheelConfetti(); }
+    var detail = '';
+    if (spun && target >= 0 && target < list.length) detail = list[target].d;
+    else if (t.cat) detail = t.cat;
+    // 目标/角度没变且画布还在：只就地更新结果与按钮状态，不重建画布，
+    // 转盘动画不会被中途打断（wheelDone 广播走这条路）。
+    var existing = $('wheelCanvas');
+    if (existing && S.wheelPrevTarget === target && S.wheelPrevAngle === angle) {
+      var resEl = layer.querySelector('.wheel-result');
+      if (resEl) {
+        if (spun && done && t.text) { resEl.className = 'wheel-result'; resEl.innerHTML = '<b>' + esc(t.text) + '</b>：' + esc(detail); }
+        else { resEl.className = 'wheel-result wheel-result-empty'; resEl.innerHTML = ''; }
+      }
+      var btns = layer.querySelectorAll('.wheel-btns .btn');
+      // 转一下平时可点、转完变黑底（和另外两个一样），再按由点击事件弹字提示，不用 disabled 拦
+      if (btns[0]) { btns[0].className = (!spun && actor) ? 'btn primary' : 'btn'; btns[0].disabled = false; }
+      if (btns[1]) btns[1].disabled = (!actor || !spun || !done);
+      if (btns[2]) btns[2].disabled = (!actor || !spun || !done);
+      return;
+    }
+    var resultHtml = (spun && done && t.text)
+      ? '<div class="wheel-result"><b>' + esc(t.text) + '</b>：' + esc(detail) + '</div>'
+      : '<div class="wheel-result wheel-result-empty"></div>';
+    var spinCls = (!spun && actor) ? 'btn primary' : 'btn';
+    var endDis = (!actor || !spun || !done) ? ' disabled' : '';
+    layer.innerHTML = '<div class="wheel-wrap">' +
+      '<div class="wheel-box"><div class="wheel-pointer"></div>' +
+      '<canvas id="wheelCanvas" class="wheel-canvas" width="640" height="640"></canvas></div>' +
+      resultHtml +
+      '<div class="wheel-btns">' +
+      '<button class="' + spinCls + '" data-action="wheel-spin">🎡 转一下</button>' +
+      '<button class="btn" data-action="wheel-drink"' + endDis + '>🍺 不做，喝半杯</button>' +
+      '<button class="btn" data-action="wheel-done"' + endDis + '>✅ 做完了</button>' +
+      '</div></div>';
+    layer.classList.remove('hidden');
+    var cv = $('wheelCanvas');
+    if (!cv) return;
+    drawWheelCanvas(cv, list);
+    var prev = (typeof S.wheelPrevAngle === 'number' ? S.wheelPrevAngle : 0);
+    if (spun && done) {
+      // 结果已出（迟加入/重渲染）：直接摆到最终角度，不再重播 3.2s 动画
+      cv.style.transition = 'none';
+      cv.style.transform = 'rotate(' + angle + 'deg)';
+    } else if (spun && angle !== prev) {
+      // 先无过渡摆到旧角度，下一帧再加过渡转到新角度，避免直接跳变
+      cv.style.transition = 'none';
+      cv.style.transform = 'rotate(' + prev + 'deg)';
+      void cv.offsetWidth;
+      var toAngle = angle;
+      requestAnimationFrame(function () {
+        cv.style.transition = 'transform 3.2s cubic-bezier(.12,.8,.16,1)';
+        cv.style.transform = 'rotate(' + toAngle + 'deg)';
+      });
+    } else {
+      cv.style.transition = 'none';
+      cv.style.transform = 'rotate(' + angle + 'deg)';
+    }
+    S.wheelPrevAngle = angle;
+    S.wheelPrevTarget = target;
+  }
+
   /* ---------- 联机层渲染 ---------- */
   function renderTada(s) {
     var layer = $('tada-layer');
     if (!layer) return;
     var t = s && s.tada;
     if (!t || !t.open) {
+      S.wheelPrevAngle = 0; S.wheelPrevTarget = -1;
       if (!layer.classList.contains('hidden')) { layer.classList.add('hidden'); layer.innerHTML = ''; }
       return;
     }
+    if (t.kind === 'wheel') { renderWheel(s); return; }
     var w = s.winner;
     var head = '<div class="tada-head"><b>#' + ((w && w.num) || '-') + ' ' + esc((w && w.name) || '玩家') +
                '</b> 猜中了炸弹，接受惩罚！</div>';
@@ -938,14 +1252,35 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
                '<h2>选一个，开始抽题</h2>' +
                '<button class="btn pick-btn dare" data-action="tada-pick" data-v="dare">大冒险</button>' +
                '<button class="btn pick-btn truth" data-action="tada-pick" data-v="truth">真心话</button>' +
-               '<p class="hint" style="text-align:center;margin-top:14px">真心话与大冒险各自独立抽题，「下一题」会在同类型题库里继续抽。</p>' +
+               '<p class="hint" style="text-align:center;margin-top:14px">真心话和大冒险合计最多换 3 次，换满就没有下一题了，先喝一杯。</p>' +
              '</div>';
     } else {
-      body = qCardHtml(t.kind, t.text, t.cat, t.drawn, '已抽 ' + (t.drawn || 1) + ' 题 · 同类型继续抽不重复') +
-             '<div class="btn-row">' +
-               '<button class="btn primary" data-action="tada-next">下一题</button>' +
-               '<button class="btn" data-action="tada-done">完成惩罚</button>' +
-             '</div>';
+      var skips = t.skips || 0;
+      var left = Math.max(0, 3 - skips);
+      var foot = '已抽 ' + (t.drawn || 1) + ' 题 · 同类型继续抽不重复 · 已换 ' + skips + '/3 次';
+      var actor = isTadaActor(s);
+      var byNum = tadaByNum(s);
+      body = qCardHtml(t.kind, t.text, t.cat, t.drawn, foot);
+      if (t.drink) {
+        body += '<div class="drink-banner"><b>别选了，罚喝一杯！🍺</b>' +
+                '<p>已经换了 3 次了，先喝一杯，没有下一题了。这道题要么现在做，要么认罚喝一杯。</p></div>';
+        if (actor) {
+          body += '<div class="btn-row">' +
+                    '<button class="btn primary" data-action="tada-done">认罚喝一杯</button>' +
+                    '<button class="btn" data-action="tada-done">做这道题</button>' +
+                  '</div>';
+        } else {
+        body += '<div class="skip-note">只有被罚的 #' + byNum + ' 能点换一题，你只能看，不能帮她点（还剩 ' + left + ' 次）</div>';
+        }
+      } else if (actor) {
+        body += '<div class="btn-row">' +
+                  '<button class="btn primary" data-action="tada-next">换一题（还剩 ' + left + ' 次）</button>' +
+                  '<button class="btn" data-action="tada-done">完成惩罚</button>' +
+                '</div>' +
+                '<div class="skip-note">真心话和大冒险合计最多换 3 次，第 3 次换完就没有下一题了，先喝一杯</div>';
+      } else {
+        body += '<div class="skip-note">只有被罚的 #' + byNum + ' 能点换一题，你只能看，不能帮她点（还剩 ' + left + ' 次）</div>';
+      }
     }
     layer.innerHTML = '<div class="tada-wrap">' + head + body + '</div>';
     layer.classList.remove('hidden');
@@ -953,7 +1288,7 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
 
   /* ---------- 独立版 · 真心话大冒险 ---------- */
   function resetSolo() {
-    S.solo = { mode: null, deck: null, kind: null, text: '', cat: '', drawn: 0 };
+    S.solo = { mode: null, deck: null, kind: null, text: '', cat: '', drawn: 0, skips: 0, drink: false };
   }
   function soloEnter() {
     $('screen-home').classList.remove('active');
@@ -972,13 +1307,14 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     if (!tadaReady()) { toast(TADA_EMPTY); return; }
     S.solo.mode = (mode === 'couple') ? 'couple' : 'date';
     S.solo.deck = tadaNewDeck(S.solo.mode);
-    S.solo.kind = null; S.solo.text = ''; S.solo.cat = ''; S.solo.drawn = 0;
+    S.solo.kind = null; S.solo.text = ''; S.solo.cat = ''; S.solo.drawn = 0; S.solo.skips = 0; S.solo.drink = false;
     renderSolo();
   }
   function soloPick(kind) {
     var so = S.solo;
     if (!so.deck) return;
     so.kind = (kind === 'dare') ? 'dare' : 'truth';
+    // 换种类不重置：真心话+大冒险合计最多换 3 次
     var q = so.deck.draw(so.kind);
     so.text = q.text; so.cat = q.cat || ''; so.drawn = 1;
     renderSolo();
@@ -986,8 +1322,13 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
   function soloNext() {
     var so = S.solo;
     if (!so.deck || !so.kind) return;
+    if (so.drink) return;
+    if (so.kind === 'dare' && so.deck.noteSkipped) so.deck.noteSkipped(so.text);
+    if ((so.skips || 0) >= 3) { so.drink = true; renderSolo(); return; }
+    so.skips = (so.skips || 0) + 1;
     var q = so.deck.draw(so.kind);
     so.text = q.text; so.cat = q.cat || ''; so.drawn++;
+    if ((so.skips || 0) >= 3) so.drink = true;
     renderSolo();
   }
   function renderSolo() {
@@ -1019,17 +1360,30 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
           '<h2>选一个，开始抽题</h2>' +
           '<button class="btn pick-btn dare" data-action="solo-pick" data-v="dare">大冒险</button>' +
           '<button class="btn pick-btn truth" data-action="solo-pick" data-v="truth">真心话</button>' +
-          '<p class="hint" style="text-align:center;margin-top:14px">真心话与大冒险各自独立抽题，「下一题」会在同类型题库里继续抽。</p>' +
+          '<p class="hint" style="text-align:center;margin-top:14px">真心话和大冒险合计最多换 3 次，换满就没有下一题了，先喝一杯。</p>' +
         '</div>' +
         '</div>';
       return;
     }
+    var left = Math.max(0, 3 - (so.skips || 0));
+    var foot = '已抽 ' + so.drawn + ' 题 · 同类型继续抽不重复 · 已换 ' + (so.skips || 0) + '/3 次';
+    var btns;
+    if (so.drink) {
+      btns = '<div class="drink-banner"><b>别选了，罚喝一杯！🍺</b>' +
+             '<p>已经换了 3 次了，先喝一杯，没有下一题了。这道题要么现在做，要么认罚喝一杯。</p></div>' +
+             '<div class="btn-row">' +
+               '<button class="btn primary" data-action="solo-exit">认罚喝一杯</button>' +
+               '<button class="btn" data-action="solo-exit">做这道题</button>' +
+             '</div>';
+    } else {
+      btns = '<div class="btn-row">' +
+               '<button class="btn primary" data-action="solo-next">换一题（还剩 ' + left + ' 次）</button>' +
+               '<button class="btn" data-action="solo-exit">退出</button>' +
+             '</div>' +
+             '<div class="skip-note">真心话和大冒险合计最多换 3 次，第 3 次换完就没有下一题了，先喝一杯</div>';
+    }
     box.innerHTML = '<div class="tada-wrap">' +
-      qCardHtml(so.kind, so.text, so.cat, so.drawn, '已抽 ' + so.drawn + ' 题 · 同类型继续抽不重复') +
-      '<div class="btn-row">' +
-        '<button class="btn primary" data-action="solo-next">下一题</button>' +
-        '<button class="btn" data-action="solo-exit">退出</button>' +
-      '</div>' +
+      qCardHtml(so.kind, so.text, so.cat, so.drawn, foot) + btns +
       '</div>';
   }
 
@@ -1039,20 +1393,83 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     if (!h) return;
     if (typeof patch.enabled === 'boolean') h.penalty.enabled = patch.enabled;
     if (patch.mode === 'date' || patch.mode === 'couple') h.penalty.mode = patch.mode;
+    if (patch.kind === 'tada' || patch.kind === 'wheel') h.penalty.kind = patch.kind;
     if (!h.penalty.enabled) h.tada = null;   // 关闭开关时收起惩罚层
     hostBroadcast();
   }
   function hostTadaOpen() {
     var h = S.host;
     if (!h) return;
+    if (h.penaltyDone) { toast('本轮惩罚已完成'); return; }
+    if ((h.penalty.kind || 'tada') === 'wheel') {
+      // 大转盘：不开 tada Deck，只开转盘会话，抽签由 hostWheelSpin 做
+      h.tada = { open: true, kind: 'wheel', text: '', cat: '', drawn: 0, by: (h.winner ? h.winner.num : 0), skips: 0, drink: false, wheelTarget: -1, wheelAngle: 0, wheelDone: false, wheelVer: h.penalty.mode || 'date' };
+      hostBroadcast();
+      return;
+    }
     if (!tadaReady()) { toast(TADA_EMPTY); return; }
     S.tadaDeck = tadaNewDeck(h.penalty.mode);
-    h.tada = { open: true, kind: null, text: '', cat: '', drawn: 0, by: (h.winner ? h.winner.num : 0) };
+    // 关了重开也不清零：用本局已累计的换题次数恢复
+    h.tada = { open: true, kind: null, text: '', cat: '', drawn: 0, by: (h.winner ? h.winner.num : 0), skips: h.penaltySkips || 0, drink: !!h.penaltyDrink };
+    hostBroadcast();
+  }
+  function hostWheelSpin(requesterNum) {
+    var h = S.host;
+    if (!h || !h.tada || !h.tada.open || h.tada.kind !== 'wheel') return;
+    var by = h.tada.by || (h.winner ? h.winner.num : 0);
+    if (requesterNum && by && requesterNum !== by) return; // 只有被罚的人能转
+    if (h.tada.wheelTarget != null && h.tada.wheelTarget >= 0) return; // 本轮只转一次
+    var list = wheelList(h.tada.wheelVer || h.penalty.mode);
+    var target = Math.floor(Math.random() * list.length);
+    var seg = 360 / list.length;
+    var base = 360 * 5 + (360 - (target * seg + seg / 2));
+    h.tada.wheelAngle = (h.tada.wheelAngle || 0) + base;
+    h.tada.wheelTarget = target;
+    h.tada.wheelDone = false;
+    h.tada.text = list[target].t;
+    h.tada.cat = list[target].d;
+    h.tada.drawn = (h.tada.drawn || 0) + 1;
+    hostBroadcast();
+    if (S.wheelTimer) clearTimeout(S.wheelTimer);
+    S.wheelTimer = setTimeout(function () {
+      S.wheelTimer = null;
+      if (!S.host || !S.host.tada || !S.host.tada.open || S.host.tada.kind !== 'wheel') return;
+      if (S.host.tada.wheelTarget !== target) return;
+      S.host.tada.wheelDone = true;
+      hostBroadcast();
+    }, 3300);
+  }
+  function hostWheelDrink(requesterNum) {
+    var h = S.host;
+    if (!h || !h.tada || !h.tada.open || h.tada.kind !== 'wheel') return;
+    var by = h.tada.by || (h.winner ? h.winner.num : 0);
+    if (requesterNum && by && requesterNum !== by) return;
+    if (!h.tada.wheelDone) return; // 结果没出来前不能点
+    if (S.wheelTimer) { clearTimeout(S.wheelTimer); S.wheelTimer = null; }
+    h.tada = null;
+    h.penaltyDone = true;
+    h.penaltyDrink = true; // 喝半杯这次同时记 penaltyDrink
+    S.wheelPrevAngle = 0; S.wheelPrevTarget = -1;
+    hostBroadcast();
+    toast('已记半杯');
+  }
+  function hostWheelDone(requesterNum) {
+    var h = S.host;
+    if (!h || !h.tada || !h.tada.open || h.tada.kind !== 'wheel') return;
+    var by = h.tada.by || (h.winner ? h.winner.num : 0);
+    if (requesterNum && by && requesterNum !== by) return;
+    if (!h.tada.wheelDone) return; // 结果没出来前不能点
+    if (S.wheelTimer) { clearTimeout(S.wheelTimer); S.wheelTimer = null; }
+    h.tada = null;
+    h.penaltyDone = true;
+    S.wheelPrevAngle = 0; S.wheelPrevTarget = -1;
     hostBroadcast();
   }
   function hostTadaPick(kind) {
     var h = S.host;
     if (!h || !h.tada || !h.tada.open) return;
+    if (h.tada.kind === 'wheel') return; // 大转盘会话不走抽题
+    if (h.tada.drink) return; // 已换满 3 次锁定罚喝，不再抽新题
     if (!tadaReady()) { toast(TADA_EMPTY); return; }
     if (!S.tadaDeck) S.tadaDeck = tadaNewDeck(h.penalty.mode);
     var k = (kind === 'dare') ? 'dare' : 'truth';
@@ -1063,15 +1480,51 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     h.tada.drawn = (h.tada.drawn || 0) + 1;
     hostBroadcast();
   }
-  function hostTadaNext() {
+  function hostTadaNext(requesterNum) {
     var h = S.host;
     if (!h || !h.tada || !h.tada.open || !h.tada.kind) return;
+    if (h.tada.kind === 'wheel') return; // 大转盘会话不走换题
+    if (h.tada.drink) return; // 已锁定罚喝，不再抽题
+    // 权限：只有被罚的人能换题（房主本人不是被罚者时也拦）
+    var by = h.tada.by || (h.winner ? h.winner.num : 0);
+    if (requesterNum && by && requesterNum !== by) return;
+    // 当前这道正是牵手题且被换掉：记一次跳过，后面低概率复出（本页面会话内有效）
+    if (h.tada.kind === 'dare' && S.tadaDeck && S.tadaDeck.noteSkipped) S.tadaDeck.noteSkipped(h.tada.text);
+    // 真心话和大冒险合计最多换 3 次，不分种类；换种类也不重置
+    if ((h.tada.skips || 0) >= 3) { h.tada.drink = true; h.penaltyDrink = true; hostBroadcast(); return; }
+    h.tada.skips = (h.tada.skips || 0) + 1;
+    h.penaltySkips = h.tada.skips;
     hostTadaPick(h.tada.kind);
+    // 第 3 次换完即锁定：当前这道题就是最后一道，再点换题就罚喝，提前没有下一题
+    if ((h.tada.skips || 0) >= 3) { h.tada.drink = true; h.penaltyDrink = true; hostBroadcast(); }
   }
-  function hostTadaClose() {
+  /* v2.3：跳过惩罚不再直接开新局（旧逻辑调 hostStart 会把换题次数清零重给 3 次，
+     等于绕过“换满 3 次先喝一杯”）。现在跳过=先喝一杯：记 penaltyDone，不开新局，
+     换题次数不清零；想再玩由房主另点“再来一局”，那时才是新一局、重新给 3 次。 */
+  function hostSkipPenalty() {
     var h = S.host;
     if (!h) return;
+    if (h.penaltyDone) return; // 本局惩罚已完成，不再重复记
+    if (S.wheelTimer) { clearTimeout(S.wheelTimer); S.wheelTimer = null; }
+    S.wheelPrevAngle = 0; S.wheelPrevTarget = -1;
     h.tada = null;
+    h.penaltyDone = true; // 跳过也算本局惩罚已处理，惩罚层不再重开
+    h.penaltyDrink = true; // 跳过先喝（tada 一杯 / 大转盘半杯）
+    closeModal();
+    hostBroadcast();
+    toast(((h.penalty.kind || 'tada') === 'wheel' ? '已记半杯' : '已记一杯') + '，点“再来一局”开新局');
+  }
+  function hostTadaClose(requesterNum) {
+    var h = S.host;
+    if (!h) return;
+    if (h.tada && h.tada.kind === 'wheel') return; // 大转盘用 hostWheelDrink/Done 关
+    // 权限：只有被罚的人能点完成/认罚，别人不能帮她关掉
+    if (h.tada) {
+      var by = h.tada.by || (h.winner ? h.winner.num : 0);
+      if (requesterNum && by && requesterNum !== by) return;
+    }
+    h.tada = null;
+    h.penaltyDone = true; // 本局惩罚已完成，之后再点接受惩罚也不会重开
     hostBroadcast();
   }
   function clientTada(act, kind) {
@@ -1094,6 +1547,8 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     resetSolo();
     var layer = $('tada-layer');
     if (layer) { layer.classList.add('hidden'); layer.innerHTML = ''; }
+    if (S.wheelTimer) { clearTimeout(S.wheelTimer); S.wheelTimer = null; }
+    S.wheelPrevAngle = 0; S.wheelPrevTarget = -1;
     tip('');
   }
   function cleanup() {
@@ -1152,7 +1607,7 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     if (S.busy) return;
     if (typeof window.Peer !== 'function') { tip('PeerJS 尚未加载完成，请稍候或检查网络'); return; }
     var code = digitsOnly($('input-code').value);
-    if (code.length !== 6) { tip('请输入 6 位房间号'); return; }
+    if (code.length !== 3) { tip('请输入 3 位房号'); return; }
     S.myName = clampName($('input-name').value) || '玩家';
     S.busy = true;
     tip('正在连接房主…');
@@ -1213,7 +1668,7 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     p.on('error', function (err) {
       var t = err && err.type;
       if (t === 'peer-unavailable') {
-        if (!settled) { finish(); try { p.destroy(); } catch (e) {} tip('房间不存在，请检查 6 位房间号'); }
+        if (!settled) { finish(); try { p.destroy(); } catch (e) {} tip('房间不存在，请检查 3 位房号'); }
         return;
       }
       console.warn('[client peer error]', err);
@@ -1297,15 +1752,40 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
     /* --- 游戏结束惩罚（房主可操作） --- */
     else if (act === 'penalty-toggle') { if (S.host) hostPenaltySet({ enabled: !S.host.penalty.enabled }); }
     else if (act === 'penalty-mode') { if (S.host) hostPenaltySet({ mode: el.getAttribute('data-v') }); }
+    else if (act === 'penalty-kind') { if (S.host) hostPenaltySet({ kind: el.getAttribute('data-v') }); }
+    else if (act === 'wheel-spin') {
+      var ws = S.pub || (S.host ? hostPublic() : null);
+      if (ws && !isTadaActor(ws)) { toast('只有被罚的人能转'); return; }
+      if (ws && ws.tada && ws.tada.wheelTarget != null && ws.tada.wheelTarget >= 0) { toast('请先接收惩罚'); return; }
+      if (S.role === 'host') hostWheelSpin(S.myNum); else clientTada('wheel-spin');
+    }
+    else if (act === 'wheel-drink') {
+      var wd = S.pub || (S.host ? hostPublic() : null);
+      if (wd && !isTadaActor(wd)) { toast('只有被罚的人能点'); return; }
+      if (S.role === 'host') hostWheelDrink(S.myNum); else clientTada('wheel-drink');
+    }
+    else if (act === 'wheel-done') {
+      var wn = S.pub || (S.host ? hostPublic() : null);
+      if (wn && !isTadaActor(wn)) { toast('只有被罚的人能点'); return; }
+      if (S.role === 'host') hostWheelDone(S.myNum); else clientTada('wheel-done');
+    }
     /* --- 页内真心话大冒险层（联机） --- */
     else if (act === 'accept-penalty') { if (S.role === 'host') hostTadaOpen(); else clientTada('open'); }
-    else if (act === 'skip-penalty') { if (S.role === 'host') hostStart(); else closeModal(); }
+    else if (act === 'skip-penalty') { if (S.role === 'host') hostSkipPenalty(); else { var sp = S.pub || (S.host ? hostPublic() : null); var sk = (sp && sp.penalty && sp.penalty.kind) || 'tada'; toast(sk === 'wheel' ? '跳过要房主记半杯' : '跳过要房主记一杯'); } }
     else if (act === 'tada-pick') {
       if (S.role === 'host') hostTadaPick(el.getAttribute('data-v'));
       else clientTada('pick', el.getAttribute('data-v'));
     }
-    else if (act === 'tada-next') { if (S.role === 'host') hostTadaNext(); else clientTada('next'); }
-    else if (act === 'tada-done') { if (S.role === 'host') hostTadaClose(); else clientTada('close'); }
+    else if (act === 'tada-next') {
+      var st = S.pub || (S.host ? hostPublic() : null);
+      if (st && !isTadaActor(st)) { toast('只有被罚的人能换题'); return; }
+      if (S.role === 'host') hostTadaNext(S.myNum); else clientTada('next');
+    }
+    else if (act === 'tada-done') {
+      var st2 = S.pub || (S.host ? hostPublic() : null);
+      if (st2 && !isTadaActor(st2)) { toast('只有被罚的人能完成惩罚'); return; }
+      if (S.role === 'host') hostTadaClose(S.myNum); else clientTada('close');
+    }
   });
 
   document.addEventListener('input', function (e) {
@@ -1334,7 +1814,7 @@ label.field>span{display:block;font-size:13px;color:#8b95b2;margin-bottom:6px}
 
   /* ---------------- 启动 ---------------- */
   function initApp() {
-    var m = location.search.match(/[?&]room=(\d{6})/);
+    var m = location.search.match(/[?&]room=(\d{3})/);
     if (m) {
       var el = $('input-code');
       if (el) el.value = m[1];

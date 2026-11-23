@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0a0d16">
+<title>贴贴转盘 · 坐着玩</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;min-height:100%}
+body{background:#0a0d16;background-image:radial-gradient(900px 520px at 12% -8%,rgba(255,138,61,.16),transparent 60%),radial-gradient(820px 520px at 92% 4%,rgba(124,92,255,.18),transparent 62%),radial-gradient(700px 480px at 50% 110%,rgba(255,92,157,.12),transparent 60%);color:#e9edf7;font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+.wrap{max-width:560px;margin:0 auto;padding:calc(22px + env(safe-area-inset-top)) 18px calc(36px + env(safe-area-inset-bottom));text-align:center}
+h1{margin:0;font-size:28px;font-weight:800;letter-spacing:2px;background:linear-gradient(120deg,#ff8a3d,#ff5c9d 45%,#a97bff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{margin:8px 0 0;color:#8b95b2;font-size:13.5px}
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:14px 0 4px}
+.chips span{font-size:12.5px;color:#a9b2cc;border:1px solid #232b47;background:#131a2c;border-radius:999px;padding:5px 12px}
+.wheel-box{position:relative;width:min(320px,84vw);height:min(320px,84vw);margin:22px auto 8px}
+#wheel{width:100%;height:100%;border-radius:50%;box-shadow:0 14px 34px rgba(0,0,0,.45);border:4px solid #232b47;transition:transform 3.2s cubic-bezier(.12,.8,.16,1)}
+.pointer{position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;border-top:42px solid #ff2d55;z-index:3;filter:drop-shadow(0 3px 6px rgba(0,0,0,.6))}
+.hub{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:86px;height:86px;border-radius:50%;background:linear-gradient(135deg,#ff5c9d,#7c5cff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff;box-shadow:0 8px 20px rgba(0,0,0,.4);z-index:2}
+.result{min-height:118px;margin:14px 0 6px;background:linear-gradient(180deg,rgba(26,32,54,.96),rgba(19,24,42,.96));border:1px solid #232b47;border-radius:18px;padding:18px}
+.result .label{font-size:12.5px;color:#8b95b2}
+.result .action{font-size:24px;font-weight:800;margin:6px 0 2px}
+.result .detail{font-size:14px;color:#c3cbdf}
+.timer{font-size:42px;font-weight:800;margin:2px 0;color:#ffd54a}
+button{border:0;cursor:pointer;font:inherit;font-weight:700;color:#fff;border-radius:12px}
+.btn-main{width:100%;height:52px;background:linear-gradient(135deg,#ff5c9d,#7c5cff);font-size:17px;margin-top:10px;box-shadow:0 8px 20px rgba(0,0,0,.3)}
+.btn-main:disabled{opacity:.55}
+.btn-row{display:flex;gap:10px;margin-top:10px}
+.btn-row button{flex:1;height:48px;font-size:15px}
+.btn-drink{background:#2a3352;color:#e9edf7}
+.btn-done{background:linear-gradient(135deg,#ff8a3d,#ff5c9d)}
+.stats{display:flex;gap:10px;margin-top:16px}
+.stats div{flex:1;background:#131a2c;border:1px solid #232b47;border-radius:12px;padding:10px 4px;font-size:13px;color:#9aa4c2}
+.stats b{display:block;font-size:20px;color:#e9edf7}
+.rules{margin:20px 0 0;color:#7b86a5;font-size:12.5px;line-height:1.8;text-align:left;border-top:1px solid #1f2740;padding-top:14px}
+.rules b{color:#a9b2cc}
+a.back{display:inline-block;margin-top:18px;color:#8b95b2;font-size:13px;text-decoration:none}
+.wheel-confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:80}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>💕 贴贴转盘</h1>
+  <p class="sub">坐着就能玩 · 不用起身 · 转到什么做什么</p>
+  <div class="chips"><span>🪑 坐着玩</span><span>📱 一部手机</span><span>🍺 不做就喝半杯</span><span>🎡 50格</span></div>
+
+  <div class="wheel-box">
+    <div class="pointer"></div>
+    <canvas id="wheel" width="640" height="640"></canvas>
+    <div class="hub">点下面<br>转一下</div>
+  </div>
+
+  <div class="result" id="result">
+    <div class="label">还没转 · 先说好规则</div>
+    <div class="action">转到什么，就做什么</div>
+    <div class="detail">不想做？点「不做，喝半杯」，记半杯再转。</div>
+  </div>
+
+  <button class="btn-main" id="spinBtn" onclick="spin()">🎡 转一下</button>
+  <div class="btn-row">
+    <button class="btn-drink" id="drinkBtn" onclick="skipDrink()" disabled>🍺 不做，喝半杯</button>
+    <button class="btn-done" id="doneBtn" onclick="done()" disabled>✅ 做完了</button>
+  </div>
+
+  <div class="stats">
+    <div>已转<b id="rounds">0</b>轮</div>
+    <div>已完成<b id="dones">0</b>次</div>
+    <div>已喝<b id="drinks">0</b>半杯</div>
+  </div>
+
+  <div class="rules">
+    <b>玩法：</b>两个人轮流点「转一下」，转盘停在哪格就做哪件事，计时结束或做完点「做完了」再转下一轮。<br>
+    <b>跳过：</b>不想做就喝半杯，记半杯，不用做这格。<br>
+    <b>全坐着：</b>50 格全是手、肩、额头、脸颊、手心、腿、脚、耳朵能做的，没有公主抱、没有背着走、不用站起来。<br>
+    <b>说明：</b>纯静态单页，不登录、不联网、不存数据，关掉页面计数清零。
+  </div>
+  <a class="back" href="../">← 回游戏合集</a>
+</div>
+
+<script>
+var ACTIONS = [
+    {t:"十指紧扣",d:"两个人十指紧扣，坚持 1 分钟，中间不许松开。",s:60},
+    {t:"靠肩喝半杯",d:"一个人靠在另一个人肩上，把半杯喝完再起来。",s:0},
+    {t:"额头贴额头",d:"额头贴额头，坚持 30 秒，谁先笑谁多喝一口。",s:30},
+    {t:"脸颊贴脸颊",d:"脸颊贴脸颊，坚持 30 秒，贴紧了不许躲。",s:30},
+    {t:"手放对方腿上",d:"把手轻轻放对方腿上，保持 1 分钟，不许拿开。",s:60},
+    {t:"手心写字",d:"一个人在另一个人手心里写一个字，猜对了换人写，猜错喝一口。",s:0},
+    {t:"牵手不松到下一轮",d:"从现在起一直牵着手，直到下一轮转完才能松开。",s:0},
+    {t:"对视不笑",d:"两个人对视 30 秒，谁先笑谁喝半杯，输的人被捏一下脸颊。",s:30},
+    {t:"搭肩一分钟",d:"把手搭在对方肩上，保持 1 分钟，肩膀不许离开。",s:60},
+    {t:"桌下脚碰脚",d:"桌子下面脚碰脚，保持 1 分钟，不许躲开。",s:60},
+    {t:"耳边悄悄话",d:"凑到对方耳边说一句悄悄话，说完脸颊贴一下。",s:0},
+    {t:"坐着抱抱",d:"侧身抱住对方，坚持 30 秒，抱紧了不许松。",s:30},
+    {t:"小拇指拉钩",d:"两人小拇指拉钩，说一句「不许反悔」，保持5秒。",s:0},
+    {t:"手心贴手心",d:"两人手心贴手心，比谁的手大，保持5秒。",s:0},
+    {t:"指尖碰指尖",d:"两人轮流用指尖碰对方指尖，像触电，持续5秒。",s:0},
+    {t:"握手腕数心跳",d:"握住对方手腕，数10秒心跳。",s:10},
+    {t:"捏一下脸蛋",d:"轻轻捏一下对方脸蛋，看反应。",s:0},
+    {t:"肩膀贴肩膀",d:"两人肩膀贴肩膀坐10秒不说话。",s:10},
+    {t:"下巴搁肩上",d:"把下巴轻轻搁在对方肩上，停5秒。",s:0},
+    {t:"拨头发到耳后",d:"帮对方把头发拨到耳后，动作慢一点。",s:0},
+    {t:"轻搂腰5秒",d:"轻轻搂住对方的腰，保持5秒。",s:0},
+    {t:"手搭腰上5秒",d:"一只手轻搭对方腰上，保持5秒不说话。",s:0},
+    {t:"鼻尖碰鼻尖",d:"两人鼻尖碰鼻尖，停5秒分开。",s:0},
+    {t:"轻碰嘴唇一下",d:"用指尖轻碰一下对方嘴唇，碰一下就收回。",s:0},
+    {t:"耳边说情话",d:"对着对方耳朵，用最小声音说一句情话。",s:0},
+    {t:"轻点鼻尖",d:"用指尖轻点对方鼻尖，说「小笨蛋」。",s:0},
+    {t:"喂一颗零食",d:"喂对方吃一颗你手里的零食/葡萄。",s:0},
+    {t:"同吸管喝一口",d:"用你的吸管，让对方喝一口你的饮料，保持5秒。",s:0},
+    {t:"听心跳5秒",d:"让对方听你心跳，耳朵贴你胸口5秒。",s:0},
+    {t:"手拉手闭眼",d:"两人手拉手，闭眼10秒，感受对方。",s:10},
+    {t:"手背轻亲一下",d:"轻在对方手背上亲一下，说「谢谢配合」。",s:0},
+    {t:"靠肩30秒",d:"把头靠在对方肩膀上，保持30秒，不许躲。",s:30},
+    {t:"靠肩说情话",d:"让对方靠在你肩上，你轻轻说一句情话。",s:0},
+    {t:"肩膀接头",d:"让对方靠过来，你用肩膀接住他/她的头，保持10秒。",s:10},
+    {t:"背后轻抱",d:"从背后轻抱对方，双手搭在腰前数5秒。",s:5},
+    {t:"搂腰耳语",d:"轻搂对方腰，在耳边说「你好瘦/好有料」，保持5秒。",s:5},
+    {t:"侧面搂腰",d:"轻从侧面搂对方腰，问一句「能搂吗」。",s:0},
+    {t:"手臂圈腰",d:"用手臂轻圈对方腰，问「你腰真细/真结实」，保持5秒。",s:5},
+    {t:"轻碰耳垂",d:"轻碰一下对方耳垂，碰一下就收回，保持5秒。",s:5},
+    {t:"脖边呼气",d:"把脸凑近对方脖子旁边，呼一口气（不碰到），保持5秒。",s:5},
+    {t:"揉揉后颈",d:"轻轻揉一下对方后颈，保持5秒。",s:5},
+    {t:"腿放腿上",d:"让对方把一只脚的大腿放在自己腿上，保持1分钟。",s:60},
+    {t:"对方抱你",d:"让对方抱你一下，你数对方抱了几秒。",s:0},
+    {t:"面对面抱",d:"两人面对面轻抱一下，不超5秒，看谁先松手。",s:5},
+    {t:"披衣搂一下",d:"把外套披在对方肩上，顺手搂一下，保持5秒。",s:5},
+    {t:"埋肩搂腰",d:"轻搂对方腰，把头埋在他/她肩膀上，保持5秒。",s:5},
+    {t:"尝一口碗里",d:"让对方尝一口你碗里的东西，用同一双筷子/勺子。",s:0},
+    {t:"喂一颗糖",d:"让对方张开嘴，你喂一颗糖进去。",s:0},
+    {t:"交杯酒",d:"两人手臂交缠，各喝一口自己的酒，眼睛看着对方。",s:0},
+    {t:"一起深呼吸",d:"两人一起做3次深呼吸，看谁先笑。",s:0}
+  ];
+var COLORS=["#ff8a3d","#ff5c9d","#7c5cff","#ff3d6e","#ffb03d","#5cb8ff","#4ade80","#f472b6","#ff7a59","#a78bfa","#34d399","#fbbf24","#fb7185","#38bdf8","#a3e635","#f472b6"];
+var cv=document.getElementById("wheel"),ctx=cv.getContext("2d");
+var angle=0,spinning=false,timerId=null,left=0,rounds=0,dones=0,drinks=0,current=-1;
+function draw(){
+  var cx=320,cy=320,r=310;
+  ctx.clearRect(0,0,640,640);
+  var N=ACTIONS.length;
+  for(var i=0;i<N;i++){
+    var step=Math.PI*2/N;
+    var a0=i*step-Math.PI/2,a1=a0+step;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,a0,a1);ctx.closePath();
+    ctx.fillStyle=COLORS[i%COLORS.length];ctx.fill();
+    ctx.save();ctx.translate(cx,cy);ctx.rotate(a0+step/2);
+    ctx.fillStyle="#fff";ctx.font="bold 18px sans-serif";ctx.textAlign="right";ctx.textBaseline="middle";
+    var label=ACTIONS[i].t.replace(/\s/g,"");label=label.length>4?label.slice(0,4):label;
+    ctx.fillText(label,r-18,0);ctx.restore();
+  }
+  ctx.beginPath();ctx.arc(cx,cy,58,0,Math.PI*2);ctx.fillStyle="#0a0d16";ctx.fill();
+}
+draw();
+
+function launchConfetti(){
+  var old=document.querySelector('.wheel-confetti');if(old&&old.parentNode)old.parentNode.removeChild(old);
+  var cv=document.createElement('canvas');cv.className='wheel-confetti';
+  cv.width=window.innerWidth;cv.height=window.innerHeight;document.body.appendChild(cv);
+  var ctx=cv.getContext('2d');var W=cv.width,H=cv.height,N=120,parts=[],i;
+  for(i=0;i<N;i++){parts.push({x:Math.random()*W,y:-20-Math.random()*220,w:6+Math.random()*7,h:8+Math.random()*8,vy:2.2+Math.random()*3.2,vx:-1.2+Math.random()*2.4,rot:Math.random()*Math.PI*2,vr:-0.12+Math.random()*0.24,color:COLORS[Math.floor(Math.random()*COLORS.length)],round:Math.random()<0.35});}
+  var t0=Date.now(),DUR=2800;
+  (function frame(){var el=Date.now()-t0;
+    if(el>=DUR||!cv.parentNode){if(cv.parentNode)cv.parentNode.removeChild(cv);return;}
+    ctx.clearRect(0,0,W,H);ctx.globalAlpha=el>DUR-800?Math.max(0,(DUR-el)/800):1;
+    for(i=0;i<N;i++){var p=parts[i];p.y+=p.vy;p.x+=p.vx+Math.sin((el/300)+i)*0.6;p.rot+=p.vr;
+      if(p.y>H+30){p.y=-20;p.x=Math.random()*W;}
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.color;
+      if(p.round){ctx.beginPath();ctx.arc(0,0,p.w/2,0,Math.PI*2);ctx.fill();}else ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+      ctx.restore();}
+    ctx.globalAlpha=1;requestAnimationFrame(frame);})();
+}
+function fmt(s){return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
+function showResult(i){
+  current=i;var a=ACTIONS[i];
+  var html='<div class="label">第 '+(rounds+1)+' 轮 · 转到了</div><div class="action">'+a.t+'</div><div class="detail">'+a.d+'</div>';
+  if(a.s>0){left=a.s;html+='<div class="timer" id="timer">'+fmt(left)+'</div>';
+    clearInterval(timerId);
+    timerId=setInterval(function(){left--;var el=document.getElementById("timer");if(el)el.textContent=fmt(Math.max(left,0));if(left<=0){clearInterval(timerId);if(el)el.textContent="⏰ 时间到！";}},1000);
+  }
+  document.getElementById("result").innerHTML=html;
+  launchConfetti();
+  document.getElementById("drinkBtn").disabled=false;
+  document.getElementById("doneBtn").disabled=false;
+}
+function spin(){
+  if(spinning)return;spinning=true;clearInterval(timerId);
+  document.getElementById("spinBtn").disabled=true;
+  document.getElementById("drinkBtn").disabled=true;
+  document.getElementById("doneBtn").disabled=true;
+  document.getElementById("result").innerHTML='<div class="label">转盘转起来了…</div><div class="action">等它停下来</div><div class="detail">转到什么，就做什么。</div>';
+  var N=ACTIONS.length;
+  var target=Math.floor(Math.random()*N);
+  // pointer at top (-90deg). Segment i centre is at i*(360/N)+(360/N)/2. Rotate so target centre lands at top.
+  var seg=360/N;
+  var base=360*5+(360-(target*seg+seg/2));
+  angle+=base;
+  cv.style.transform="rotate("+angle+"deg)";
+  setTimeout(function(){
+    spinning=false;rounds++;
+    document.getElementById("rounds").textContent=rounds;
+    // 转完不放开转一下，必须先选喝半杯/做完了
+    showResult(target);
+  },3300);
+}
+function skipDrink(){
+  if(current<0)return;clearInterval(timerId);drinks++;
+  document.getElementById("drinks").textContent=drinks;
+  document.getElementById("result").innerHTML='<div class="label">跳过了「'+ACTIONS[current].t+'」</div><div class="action">🍺 喝半杯</div><div class="detail">喝完点「转一下」，继续下一轮。</div>';
+  current=-1;
+  document.getElementById("drinkBtn").disabled=true;
+  document.getElementById("doneBtn").disabled=true;
+  document.getElementById("spinBtn").disabled=false;
+}
+function done(){
+  if(current<0)return;clearInterval(timerId);dones++;
+  document.getElementById("dones").textContent=dones;
+  document.getElementById("result").innerHTML='<div class="label">完成了「'+ACTIONS[current].t+'」</div><div class="action">✅ 已完成</div><div class="detail">点「转一下」，继续下一轮。</div>';
+  current=-1;
+  document.getElementById("drinkBtn").disabled=true;
+  document.getElementById("doneBtn").disabled=true;
+  document.getElementById("spinBtn").disabled=false;
+}
+</script>
+</body>
+</html>

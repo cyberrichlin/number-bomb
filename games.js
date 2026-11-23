@@ -34,6 +34,16 @@ window.GAMES = [
     accent: '#ff5c9d'
   },
   {
+    id: 'voice-bird',
+    name: '声控飞鸟',
+    icon: '🐦',
+    tagline: '哼高音往上飞，哼低音往下飞，躲墙比远',
+    desc: '对着手机麦克风发声：音调越高小鸟飞得越高，音调越低飞得越低，没声音会往下掉。两人轮流飞一局，轮到谁谁的手机才开麦克风，观战的人麦克风是关的，不会干扰。最后比谁飞得远。',
+    url: 'voice-bird/',
+    meta: ['2 人轮流', '麦克风控制', '手机可玩'],
+    accent: '#2fae5f'
+  },
+  {
     id: 'truth-dare',
     name: '真心话大冒险',
     icon: '🎲',
@@ -42,5 +52,15 @@ window.GAMES = [
     url: 'truth-dare/',
     meta: ['2 人以上', '聚会喝酒', '手机可玩'],
     accent: '#ff3d6e'
+  },
+  {
+    id: 'couple-wheel',
+    name: '贴贴转盘',
+    icon: '🎡',
+    tagline: '转到什么做什么，坐着就能贴贴',
+    desc: '两个人一部手机，点一下转盘，转到哪格就做哪格，全是坐着能做的贴贴动作。不想做就喝半杯。',
+    url: 'couple-wheel/',
+    meta: ['2 人', '坐着玩', '不用联机'],
+    accent: '#ff5c9d'
   }
 ];

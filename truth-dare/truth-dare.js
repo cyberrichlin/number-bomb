@@ -178,7 +178,7 @@
       "轻轻搂住对方的腰，保持5秒",
       "从背后轻抱对方，双手搭在腰前数5秒",
       "让对方抱你一下，你数对方抱了几秒",
-      "两人面对面轻抱一下，不超5秒，看谁先松手",
+      "两人并排坐着轻抱一下，不超5秒，看谁先松手",
       "一只手轻搭对方腰上，保持5秒不说话",
       "从背后搂对方肩膀，把下巴搁在他/她肩上，保持5秒",
       "轻搂对方腰，在耳边说「你好瘦/好有料」，保持5秒",
@@ -239,7 +239,7 @@
       "把对方从椅子上「捞」起来，抱一下，保持5秒",
       "玩「树懒抱」：一方挂在另一方背上，坚持10秒",
       "把对方竖着抱起来，问「重不重你猜」，保持5秒",
-      "两人面对面蹲下，额头贴额头，站起来",
+      "两人并排坐着，额头贴额头，停10秒",
       "让对方把一只脚（或两只脚）的大腿放在自己腿上，保持1分钟"
     ],
     warm: [
@@ -271,7 +271,11 @@
       "隔着衣服亲吻对方胸口，持续10秒",
       "把对方的手指放到唇边轻咬一下，保持5秒",
       "用舌尖轻轻舔对方嘴唇一圈，停5秒"
-    ],
+    ,
+      "轻吻对方手腕内侧，停5秒",
+      "咬对方耳垂一下，停3秒",
+      "用嘴唇蹭一下对方脖子，停5秒",
+      "亲一下对方锁骨，停5秒"],
     sit: [
       "让对方坐在自己腿上，保持1分钟",
       "让对方跨坐在你腿上，对视30秒，你双手托住对方臀部",
@@ -280,7 +284,10 @@
       "让对方把双腿盘在你腰上，抱住，保持10秒",
       "让对方靠在沙发/椅背上，你俯身凑近，停10秒不说话",
       "把对方轻轻按在沙发/椅背上，俯身靠近，停10秒"
-    ],
+    ,
+      "跨坐在对方腿上，搂着对方脖子，保持30秒",
+      "侧坐在对方腿上，头靠对方肩膀，停30秒",
+      "让对方坐在自己腿上，搂着腰摇一摇，停10秒"],
     upper: [
       "从背后抱住对方，双手环住腰，保持1分钟",
       "把手从对方衣服下摆伸进去，贴住腰侧皮肤，保持10秒",
@@ -289,7 +296,9 @@
       "尝试解开对方bra后背搭扣（解不开就算），保持5秒",
       "壁咚对方，一只手撑墙，对视10秒",
       "把对方的手放到你自己身上你最敏感的部位，保持10秒"
-    ],
+    ,
+      "把手从对方衣服下摆伸进去，贴住后背皮肤，停10秒",
+      "隔着衣服轻抚对方腰侧，停10秒"],
     vibe: [
       "把对方压在身下，双手撑在两侧，对视10秒",
       "和对方鼻尖摩擦，手抚后脑勺，保持10秒",
@@ -298,12 +307,25 @@
       "一边接吻，一边用手轻抚对方后颈/后脑勺，持续30秒",
       "让对方闭眼，你从额头、鼻尖、嘴唇一路轻轻吻下去，停在锁骨",
       "把对方的手从你衣服领口轻轻往里带，停5秒，问「敢不敢继续」"
-    ]
+    ,
+      "并排坐着，额头相抵，闭眼10秒",
+      "抱着对方，耳朵贴对方胸口听心跳，停10秒"]
   };
   var COUPLE_ORDER = ['kiss', 'sit', 'upper', 'vibe'];
 
   /* 大冒险第一条（本局前 3 次必出，出过后永久移除） */
   var FIRST_DARE = DARE_DATE.hand[0];
+
+  /* 牵手题跳过后的低频复出：只存在于本页面会话内存里，不写 localStorage，
+   * 关页面 / 刷新即清零，恢复原来的保底概率。
+   *   skips    —— 本会话内牵手题被跳过的次数
+   *   cooldown —— 跳过后还要再抽几道其他大冒险，才开始低概率复出
+   * 复出概率：跳过 1 次 15%，再跳 1 次 7.5%，再跳 3.75%……每次减半 */
+  var FIRST_DARE_SESSION = { skips: 0, cooldown: 0 };
+  function firstDareLowProb() {
+    if (FIRST_DARE_SESSION.skips <= 0) return 0;
+    return 0.15 / Math.pow(2, FIRST_DARE_SESSION.skips - 1);
+  }
 
   var HISTORY_LIMIT = 150;   // 真心话题库约 103 条，设 150 避免去重窗口过窄导致循环范围过小
 
@@ -346,7 +368,7 @@
     this.usedTruths = [];       // 真心话：本局已抽出的题
     this.dareCount = 0;         // 本局已抽大冒险次数（含首条）
     this.firstDareUsed = false; // 首条是否已出现
-    this.firstDareThreshold = (mode === 'couple') ? Infinity : Math.floor(Math.random() * 3);
+    this.firstDareThreshold = (mode === 'couple') ? Infinity : (FIRST_DARE_SESSION.skips === 0 ? Math.floor(Math.random() * 3) : Infinity);
     this._resetDarePools();
   }
 
@@ -367,6 +389,17 @@
     if (!arr) return;
     var i = arr.indexOf(text);
     if (i >= 0) arr.splice(i, 1);
+  };
+
+  /* UI 换题时调用：只有当前这道正是牵手题才计数。
+   * 计数后本局 Deck 不再保底，改为隔 3 道其他大冒险后低概率复出；
+   * 再跳一次，概率再减半。返回 true 表示确实跳过了牵手题。 */
+  Deck.prototype.noteSkipped = function (text) {
+    if (text !== FIRST_DARE) return false;
+    FIRST_DARE_SESSION.skips += 1;
+    FIRST_DARE_SESSION.cooldown = 3;
+    this.firstDareUsed = false; // 允许本局 Deck 之后再低概率抽到它
+    return true;
   };
 
   /* 当前大冒险池是否还有题 */
@@ -397,6 +430,18 @@
       this._removeFrom('hand', FIRST_DARE);   // 出现一次即从本局池永久移除
       this.dareCount++;
       return { kind: 'dare', mode: this.mode, cat: 'hand', text: FIRST_DARE };
+    }
+
+    // 跳过后低频复出（仅男女朋友版）：不走正常加权池，单独掷一次低概率。
+    // 冷却期内只扣冷却、不掷骰子，避免跳完下一道立刻又回来。
+    if (this.mode !== 'couple' && FIRST_DARE_SESSION.skips > 0 && !this.firstDareUsed) {
+      if (FIRST_DARE_SESSION.cooldown > 0) {
+        FIRST_DARE_SESSION.cooldown -= 1;
+      } else if (Math.random() < firstDareLowProb()) {
+        this.firstDareUsed = true;
+        this.dareCount++;
+        return { kind: 'dare', mode: this.mode, cat: 'hand', text: FIRST_DARE };
+      }
     }
 
     if (this._dareEmpty()) this._resetDarePools();
@@ -445,6 +490,8 @@
     DATE_ORDER: DATE_ORDER,
     COUPLE_ORDER: COUPLE_ORDER,
     FIRST_DARE: FIRST_DARE,
+    FIRST_DARE_SESSION: FIRST_DARE_SESSION,
+    firstDareLowProb: firstDareLowProb,
     Deck: Deck,
     createDeck: function (mode) { return new Deck(mode); }
   };
